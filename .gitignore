@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Logs and scratch
+*.log
+scratch/
+
+# Large regenerable experiment outputs (configs and summaries are kept; see README)
+results/**/raw/
