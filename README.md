@@ -8,14 +8,15 @@ simulation** where the true interest vector `z_t` is known. The recommender sees
 the interactions.
 
 ## Status
-**Milestone 1 (literature and hypotheses): awaiting approval.** No code has been written yet.
+**Milestone 2 (simulation design): approved.** Next: Milestone 3 (simulator implementation). No code has been written yet.
 
 | Document | Purpose |
 |---|---|
 | `IMPLEMENTATION_LOG.md` | Full, dated record of design, maths, implementation, tests, results (source for the report) |
 | `DECISIONS.md` | Every important decision: alternatives, recommendation, approval status |
-| `hypothesis.md` | Research hypotheses (created after approval; draft H1–H6 in `IMPLEMENTATION_LOG.md` §20) |
+| `hypothesis.md` | Approved research hypotheses H1–H6 and the freeze rule |
 | `literature/literature_matrix.md` | Verified literature matrix, gap analysis, reading list |
+| `SIMULATION_DESIGN.md` | Simulator specification: catalogue, latent interests, drift scenarios, interaction model, seeds |
 
 ## Environment
 Python 3.12, numpy, scipy, matplotlib, pandas. pytest for tests.

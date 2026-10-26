@@ -116,11 +116,14 @@ these. Machine: 20 logical CPUs, 15.7 GB RAM, no GPU.
 ## Group B — Preliminary directions (formal approval at the milestone named)
 
 ### D-08 — Representation of the latent interest `z_t` (approve at M2)
+**Status:** APPROVED 2026-10-26 (as proposed)
 **Recommendation:** a probability vector on the simplex over `C` categories
 (`z_t ≥ 0`, `Σ_c z_{t,c} = 1`). Alternative: an unnormalised intensity vector,
 which is harder to interpret, so it isn't recommended.
+**M2 update (2026-10-26):** proposed for approval unchanged. See `SIMULATION_DESIGN.md` §3.
 
 ### D-09 — Interaction-generation model (approve at M2)
+**Status:** APPROVED 2026-10-26 (as proposed)
 Preliminary proposal (all parameters go in config):
 1. With probability `1−η`, draw a category `c_t ~ Categorical(z_t)`; with probability
    `η` (noise), draw `c_t ~ Uniform(C)`.
@@ -132,14 +135,28 @@ Preliminary proposal (all parameters go in config):
    so that the recommender's model is not identical to the simulator.
 **Alternatives:** an embedding-only generator (no categories); a Dirichlet–multinomial
 model with a random-walk `z_t`.
+**M2 update (2026-10-26), proposed for approval with two refinements**
+(`SIMULATION_DESIGN.md` §5):
+(i) the taste term uses the *standardised* score `ŝ_i(u)`, because the raw `⟨φ_i,u⟩` is
+tiny in `d = 32` (sd ≈ 1/√d) and would make `λ` hard to interpret;
+(ii) defaults `γ = 1`, `λ = 0.5` (sensitivity `λ ∈ {0, 1}`), base noise `η = 0.05`,
+with noise categories drawn uniformly. Alternative noise model, not recommended:
+noise categories drawn by global popularity ("trending" clicks), which is more
+realistic but confounds noise with popularity.
 
 ### D-10 — Drift scenarios (approve at M2)
+**Status:** APPROVED 2026-10-26 (as proposed)
 Stable (fixed `z`), gradual (linear interpolation `z_A → z_B` over `W` steps),
 abrupt (switch at `τ`), noisy (stable or drifting `z` with higher `η`), and recurrent
 (`A → B → A`). Each user's `z_A`, `z_B` are sampled from a Dirichlet distribution
 with concentration `κ`. **`κ` (focused vs spread interests) is a sensitivity
 factor**, because diversification should help most for spread interests and least
 for focused ones.
+**M2 update (2026-10-26), proposed for approval** (`SIMULATION_DESIGN.md` §4):
+`T = 200`; abrupt `τ = 100`; gradual ramp over `t = 80…120` (`W = 40`); recurrent
+`A → B → A` with switches at 70 and 140; noisy = stable `z_A` with `η = 0.3`. Noise
+acts on interactions, never on `z_t`. Concentration is a crossed factor
+`κ ∈ {0.1, 1.0}` (D-23), and `z_B` is a half-swap permutation of `z_A` (D-23).
 
 ### D-11 — Interest estimator (approve at M4)
 Candidates, all using `x_t` = the one-hot category of the observed item:
@@ -224,6 +241,7 @@ A 2×2 factorial design plus two reference points:
   bootstrap CI), Holm correction, and effect sizes.
 
 ### D-18 — Scale and seed protocol (approve at M3 and M8)
+**Status:** Seed protocol APPROVED 2026-10-26 (as refined in `SIMULATION_DESIGN.md` §7: tuning seeds 0–4, evaluation seeds 100–119, SeedSequence streams, common random numbers across scenarios). Final scale (U, number of seeds) is still to be confirmed at M8 after benchmarking.
 Preliminary: `C = 10`, `N = 500`, `d = 32`, `K = 10`, `T = 200` interactions per
 user, `U = 100` users per scenario. **Tuning seeds** are kept separate from
 **evaluation seeds** (e.g. 0–4 vs 100–119). `numpy.random.SeedSequence` spawns
@@ -239,7 +257,7 @@ This will be benchmarked before asking to run the main experiments.
 ## Group C — Raised in Milestone 1 (literature review)
 
 ### D-19 — Add a calibration re-ranker (Steck 2018) as a baseline?
-**Status:** PENDING (raised 2026-10-26, M1)
+**Status:** APPROVED 2026-10-26 (option (b): adaptive calibration re-ranker as a secondary comparison; Steck 2018 must be read in full before implementing)
 
 **Why it came up.** Steck (2018, literature B7) re-ranks a list so that its category
 distribution matches the user's interest distribution. Lin et al. (2024, B8) already
@@ -257,12 +275,12 @@ the DPP needed?"
 optional.
 
 ### D-20 — Hypotheses H1–H6
-**Status:** PENDING. Full text is in `IMPLEMENTATION_LOG.md` §20. `hypothesis.md`
-will be created only after approval. Exact metric formulas are fixed at M7 and the
-hypotheses are frozen (pre-registered) before any evaluation-seed run at M8.
+**Status:** APPROVED 2026-10-26. Recorded in `hypothesis.md` (frozen before any evaluation-seed run). Full text is also in `IMPLEMENTATION_LOG.md` §20.
+Exact metric formulas are fixed at M7 and the hypotheses are frozen (pre-registered)
+before any evaluation-seed run at M8.
 
 ### D-21 — Statistical protocol and practical significance
-**Status:** PENDING
+**Status:** APPROVED 2026-10-26 (as proposed; SESOI may be revised at M7 using tuning seeds only)
 
 - **Unit of analysis:** seed-level means (users averaged within a seed), paired
   across methods because every method sees the same sequences. Alternative: user-level
@@ -278,6 +296,62 @@ hypotheses are frozen (pre-registered) before any evaluation-seed run at M8.
 
 ---
 
+## Group D — Raised in Milestone 2 (simulation design)
+
+All APPROVED 2026-10-26 as proposed (raised the same day). The full specification is in
+`SIMULATION_DESIGN.md`. The seed protocol there refines D-18 (common random numbers
+across scenarios, stream layout), and that refinement is also pending.
+
+### D-22 — Structure of category centroids
+**Status:** APPROVED 2026-10-26 (as proposed)
+| Option | Pros | Cons |
+|---|---|---|
+| (a) **Independent random centroids** (nearly orthogonal in `d = 32`) | Simple. "Different category" means "dissimilar", so ILD and category coverage agree | No related-category structure |
+| (b) Grouped centroids (e.g. 5 groups × 2 sibling categories with correlation `ρ`; MC: `ρ = 0.5`, `σ = 1` gives sibling cosine 0.12 vs 0.00 for unrelated) | Makes embedding diversity differ from category coverage, a more realistic test of the DPP | One more parameter and harder to explain |
+**Recommendation:** (a) for the main experiments, (b) as an optional sensitivity
+check in M9.
+
+### D-23 — Interest concentration levels and shift construction
+**Status:** APPROVED 2026-10-26 (as proposed)
+- **Concentration:** `κ ∈ {0.1 (focused), 1.0 (spread)}` as a crossed factor in every
+  scenario. MC check: on average 2.0 vs 5.2 categories hold 80% of the mass.
+  `κ = 0.3` is an optional middle level.
+- **Shift:** `z_B` = half-swap permutation of `z_A`. It keeps concentration unchanged
+  and gives large shifts for both levels (mean TV 0.99 / 0.65). The alternative,
+  swapping only the top 2 categories, gives mean TV 0.36 for spread users, and
+  sometimes as little as 0.16, which is too weak to test adaptation.
+  A drawn-independently `z_B ~ Dirichlet` would confound the shift with a change in
+  concentration.
+**Recommendation:** as above.
+
+### D-24 — Repeat consumption
+**Status:** APPROVED 2026-10-26 (as proposed)
+| Option | Pros | Cons |
+|---|---|---|
+| (a) **Repeats allowed** in the simulator; recommenders do not exclude already-consumed items | Consistent (a target can always be hit); no category exhaustion | Lists may re-recommend items already seen. Less realistic for some domains |
+| (b) No repeats, and recommenders exclude consumed items | Realistic for e-commerce "discovery" | MC check: focused users would exhaust a 50-item category (140–180 draws expected); it would need `N` of about 2,000+ and distorts `P(i \| c)` over time |
+| (c) Repeats allowed, but recommenders exclude consumed items | — | **Inconsistent**: targets that are repeats could never be hit, which biases Recall |
+**Recommendation: (a)**, stated as a limitation.
+
+### D-25 — Hyperparameter tuning without leaking the scenario
+**Status:** APPROVED 2026-10-26 (as proposed)
+**Recommendation:** tune one setting per method (`α`, `W`, DPP trade-off, etc.) on a
+**pooled mix of all scenarios and both `κ` levels** using tuning seeds 0–4.
+Per-scenario tuned settings are reported only as an "oracle-tuned" sensitivity
+result, because choosing `α` per scenario uses the scenario label, which is
+prohibited information.
+
+### D-26 — Training population for base relevance `r_i`
+**Status:** APPROVED 2026-10-26 (as proposed)
+**Recommendation:** for each seed, `U_train = 1,000` users × 50 interactions, with
+stable interests drawn from the same Dirichlet mixture (both `κ` levels), the same
+catalogue, and separate random streams from the evaluation users. Then
+`r_i = (count_i + 1)/(Σ counts + N)`.
+This fixes how `r_i` is *produced*. Whether `r_i` = popularity is the final relevance
+model remains D-13, approved at M5.
+
+---
+
 ## Revision history
 - 2026-10-26 — File created in Milestone 0. All entries are PENDING or PRELIMINARY.
 - 2026-10-26 — D-01 decided (fresh repo). D-02, D-03, D-05 and D-06 approved.
@@ -285,3 +359,9 @@ hypotheses are frozen (pre-registered) before any evaluation-seed run at M8.
   D-21 (statistical protocol). Citations in D-14/D-15 checked at metadata level (see
   `literature/literature_matrix.md`, A3 and A5). The trade-off parametrisation in D-14
   is still unverified until Chen et al. is read in full.
+- 2026-10-26 — Milestone 2: D-08, D-09 and D-10 updated and proposed for approval;
+  added D-22 … D-26. Specification in `SIMULATION_DESIGN.md`.
+- 2026-10-26 — Author approved D-08, D-09, D-10, the seed protocol (D-18, part),
+  D-19 (option b), D-20, D-21 and D-22 … D-26, all as proposed. Still open: D-07
+  (deadline) and D-11 … D-17 plus the scale part of D-18 (confirmed at their own
+  milestones).

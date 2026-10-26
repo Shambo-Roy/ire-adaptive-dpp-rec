@@ -51,8 +51,17 @@ Approved 2026-10-26 (Milestone 0), see `DECISIONS.md`:
 - D-04: open-loop evaluation on fixed sequences (from the master prompt).
 - D-05: `adaptdiv/` package, JSON configs, pytest, `results/<run_id>/`.
 - D-06: numpy, scipy, matplotlib, pandas, plus pytest (installed); no PyTorch.
-Still pending: D-07 (deadline), D-08 … D-18 (to be confirmed at their milestones),
-and D-19 … D-21 (raised in M1: calibration baseline, hypotheses, statistical protocol). Scope from the master prompt:
+Approved 2026-10-26 (after Milestones 1–2):
+- D-08 … D-10: simplex interest vector; interaction model; five drift scenarios
+  (`SIMULATION_DESIGN.md`).
+- D-18 (seed protocol part): tuning seeds 0–4, evaluation seeds 100–119, SeedSequence
+  streams, common random numbers across scenarios.
+- D-19: adaptive calibration re-ranker as a secondary comparison.
+- D-20: hypotheses H1–H6 (`hypothesis.md`). D-21: statistical protocol and SESOI.
+- D-22 … D-26: independent centroids; `κ ∈ {0.1, 1.0}` with half-swap shift;
+  repeats allowed; pooled-scenario tuning; training population for `r_i`.
+Still pending: D-07 (deadline); D-11 … D-17 and the scale part of D-18 (confirmed
+at their own milestones). Scope from the master prompt:
 controlled simulation where the true `z_t` is known; open-loop evaluation
 on fixed sequences; real-data validation is optional and needs approval.
 
@@ -85,7 +94,8 @@ IRE Project/
 ├── README.md               setup, commands, overview
 ├── IMPLEMENTATION_LOG.md   this file
 ├── DECISIONS.md            decisions + approval status
-├── hypothesis.md           (created after hypotheses are agreed, M1)
+├── SIMULATION_DESIGN.md    (M2) simulator specification: catalogue, z_t, drift, interaction model, seeds
+├── hypothesis.md           approved hypotheses H1–H6 (frozen before evaluation runs)
 ├── literature/             (M1) literature matrix
 ├── adaptdiv/               Python package
 │   ├── config.py           dataclasses + JSON load/save
@@ -135,16 +145,38 @@ Candidate DPP (D-12, D-14, D-15):
 - Limits: `rank(S) ≤ d`, so at most `d` items can have a positive determinant. A
   category-indicator `S` has rank `C`.
 
+Generative model (M2, APPROVED 2026-10-26, not yet implemented; full spec in `SIMULATION_DESIGN.md`):
+- Catalogue: `μ_c = normalise(h_c)`, `h_c ~ N(0, I_d)`;
+  `φ_i = normalise(μ_{c_i} + σ ε_i)`, `ε_i ~ N(0, I_d/d)`;
+  popularity `π_i ∝ exp(s_pop ζ_i)`, `ζ_i ~ N(0,1)`, normalised within each category.
+- Interests: `z_A ~ Dirichlet(κ 1_C)`; `z_B = P z_A`, where `P` is a half-swap
+  permutation (top-`C/2` categories mapped onto bottom-`C/2` and vice versa).
+  Trajectories: stable, abrupt, gradual
+  `z_t = (1−w_t) z_A + w_t z_B`, recurrent, noisy.
+- Interactions: `n_t ~ Bernoulli(η)`; `c_t ~ Cat(z_t)` if `n_t = 0`, else
+  `Uniform(C)`; `P(i | c, u) ∝ π_i^γ exp(λ ŝ_i(u))` over items in `c`, where `ŝ_i(u)`
+  is the standardised `⟨φ_i, u⟩`.
+  Marginal: `P_t(i) = [(1−η) z_{t,c_i} + η/C] · P(i | c_i, u)`.
+- Noise floor: `TV((1−η) z + η/C, z) = η · TV(z, uniform)`.
+
 ## 6. Implementation details and important functions
 *None yet.*
 
-## 7. Data sources, preprocessing, data generation [PLANNED — D-03, D-09, D-10]
-Recommended: a fully synthetic catalogue and interactions (see DECISIONS D-03, D-09,
-D-10).
+## 7. Data sources, preprocessing, data generation [PLANNED — design approved 2026-10-26; implementation is M3]
+Fully synthetic catalogue and interactions (D-03, approved 2026-10-26).
+**Approved simulator design (M2, 2026-10-26): see `SIMULATION_DESIGN.md`** (catalogue §2,
+interests §3, scenarios §4, interaction model §5, firewall §6, seeds §7, scale §8,
+limitations §10). Proposed defaults: `C=10`, `N=500`, `d=32`, `σ=1`, `s_pop=1`,
+`γ=1`, `λ=0.5`, `η=0.05` (0.3 in the noisy scenario), `κ ∈ {0.1, 1.0}`, `T=200`,
+`τ=100`, gradual ramp 80–120, recurrent switches at 70/140, `U=100` per (seed,
+scenario, `κ`), training population 1,000 × 50 per seed.
 
 ## 8. Experimental configurations and hyperparameters [PLANNED — D-18]
 Preliminary: `C=10, N=500, d=32, K=10, T=200, U=100`; tuning seeds are kept separate
 from evaluation seeds. Nothing has been fixed yet.
+M2 proposal: tuning seeds 0–4, evaluation seeds 100–119. One hyperparameter setting
+per method, tuned on a pooled scenario mix (D-25). Common random numbers across
+scenarios (`SIMULATION_DESIGN.md` §7).
 
 ## 9. Baselines and ablation studies [PLANNED — D-16]
 A 2×2 design of {static, adaptive} × {Top-K, DPP}, plus popularity, plus an oracle-z
@@ -195,8 +227,21 @@ Recorded 2026-10-26 (Milestone 0 inspection):
   was not retrieved by search. Its claims are recorded at level S (secondary)
   until it is read in full.
 
+- **2026-10-26 (M2):** design-stage Monte Carlo checks (throwaway scratchpad scripts,
+  not in the repository) changed two preliminary ideas:
+  (i) the proposed "swap top-2 categories" drift gave a mean TV shift of only 0.36
+  for spread users (5th percentile 0.16), too weak to test adaptation. It was replaced
+  by a half-swap permutation (mean TV 0.65 for spread users, 0.99 for focused users);
+  (ii) sampling without repeats would exhaust a focused user's main category
+  (140–180 expected draws from 50 items), so repeats are allowed (D-24).
+- **2026-10-26 (M2):** the author started M2 without approving D-19 … D-21. M2 doesn't
+  depend on D-19 (a baseline) or D-21 (statistics). It is consistent with draft
+  hypotheses H3 and H5 (noisy scenario, `κ` factor), but they stay pending.
+
 ## 16. Failed approaches and negative results
-*None yet.*
+*No implemented approach has failed yet.* Design-stage alternatives that were
+rejected on evidence are recorded in §15 (M2: top-2 swap shift; no-repeat
+sampling).
 
 ## 17. Assumptions, limitations, threats to validity, reproducibility
 Risks identified in Milestone 0 (mitigation in brackets):
@@ -223,12 +268,24 @@ Risks identified in Milestone 0 (mitigation in brackets):
 10. **External validity.** These are synthetic results only. [State this plainly. Real
     data can only be an optional, limited check.]
 
+Added in Milestone 2:
+11. **Repeats allowed (D-24).** Recommending already-consumed items is allowed and
+    can be rewarded. Results apply to domains with repeat consumption.
+    [State this as a limitation; it is consistent across all methods.]
+12. **Fixed switch times.** `τ` is the same for every user. An estimator can't
+    exploit this (none sees time-of-switch information), but tuning `α` on a pooled
+    mix could implicitly favour settings that suit these particular switch times.
+    [Sensitivity check with a different `τ` in M9, if time allows.]
+13. **Common random numbers.** Scenarios share random draws, so they are *not*
+    independent samples. [Analyse scenario comparisons as paired; never pool them as
+    independent.]
+14. **Uniform noise model.** Real off-interest clicks may be popularity-driven.
+    [Stated limitation.]
+
 ## 18. Decisions pending approval
-D-07 and D-08 … D-18 in `DECISIONS.md` (D-01 … D-06 were decided 2026-10-26).
-**Still blocking:** D-07 (deadline). **Raised in M1, needed before M2:** D-19
-(calibration baseline), D-20 (hypotheses H1–H6) and D-21 (statistical protocol and
-SESOI). D-08 … D-18 are preliminary and will be confirmed at their
-milestones.
+As of 2026-10-26, everything needed for M3 is approved. Open: D-07 (deadline,
+since M0); D-11 (estimators, M4); D-12, D-13 (M5); D-14 … D-16 (M6); D-17 (M7);
+the scale part of D-18 (M8).
 
 ## 19. Chronological milestone history
 
@@ -280,11 +337,29 @@ milestones.
 - Proposed hypotheses H1–H6 (§20) and new decisions D-19 (calibration baseline),
   D-20 (hypotheses) and D-21 (statistical protocol).
 - No code, tests or experiments.
-- **Status:** awaiting approval of D-19 … D-21 (and the deadline, D-07).
+- **Status:** D-19 … D-21 not yet approved. The author started M2 on 2026-10-26.
+
+### Milestone 2 — Data representation and simulation design (2026-10-26)
+- Wrote the simulator specification `SIMULATION_DESIGN.md`: catalogue (categories,
+  embeddings, popularity), latent interest (Dirichlet concentration `κ`, half-swap
+  shift), five scenarios, the interaction model (noise, popularity, hidden taste `λ`),
+  the observable/prohibited information table, the seed protocol with common random
+  numbers, scale, and limitations.
+- Ran throwaway Monte Carlo checks (scratchpad, not in the repo) to choose `σ`,
+  `κ` levels and the shift construction (§15). These are design evidence, not
+  experimental results.
+- Updated D-08 … D-10 and added D-22 … D-26.
+- No project code, no tests, no experiments. **No git commit** (per the author's
+  instruction of 2026-10-26: never commit without explicit permission).
+- **2026-10-26:** the author approved the M2 design (D-08, D-09, D-10, D-22 … D-26,
+  seed protocol) and the M1 decisions D-19 (option b), D-20 and D-21, all as proposed.
+  `hypothesis.md` was created from the approved H1–H6. Not committed.
+- **Status:** complete. Awaiting the go-ahead for Milestone 3 (simulator
+  implementation and tests).
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
-### Proposed hypotheses (M1, 2026-10-26) — status PROPOSED, awaiting approval (D-20)
+### Hypotheses (M1, 2026-10-26) — APPROVED 2026-10-26 (D-20); canonical copy in `hypothesis.md`
 These are **predictions, not results**. Each states what would *disconfirm* it.
 Metric formulas are fixed at M7, and the hypotheses are frozen before any
 evaluation-seed run. Notation: TV(a,b) = ½‖a−b‖₁ (total-variation distance);
@@ -348,3 +423,21 @@ trade-off parameter; the calibration re-ranker (if D-19 is approved) vs Adaptive
 - **Why can't greedy DPP be called "the MAP"?** Selecting the max-determinant subset
   is NP-hard (Ko, Lee & Queyranne 1995). Greedy is a fast heuristic, and better
   approximations exist (Gillenwater et al. 2012).
+
+### Milestone 2
+- **Why is `z_B` a permutation of `z_A` instead of a fresh Dirichlet draw?** A fresh
+  draw would change how concentrated the user is at the same time as what they like,
+  confounding drift with concentration. A permutation changes only *which* categories
+  are preferred.
+- **Why is noise applied to interactions and not to `z_t`?** `z_t` is the user's true
+  intent, the quantity we evaluate the estimator against. Noise models clicks that
+  don't reflect intent, so it belongs in the observation model. That is also why even
+  a perfect tracker has a noise-floor error of `η · TV(z, uniform)`.
+- **Why `λ > 0`?** With `λ = 0`, the oracle recommender's model would be exactly the
+  generator. A hidden item-level taste ensures no method is correct by construction.
+- **What are common random numbers, and why use them?** All scenarios reuse the same
+  per-user uniform draws (inverse-CDF sampling). Differences between scenarios then
+  come from the trajectory alone, not from sampling luck, which makes paired
+  comparisons much less noisy.
+- **Why tune `α` on a pooled mix of scenarios?** Choosing `α` per scenario would use
+  the scenario label, which a real system wouldn't know. That is indirect leakage.
