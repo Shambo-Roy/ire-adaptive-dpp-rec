@@ -43,8 +43,15 @@ The project *investigates* the RQ. It does not assume the proposed method wins.
 
 ## 2. Current scope and approved design decisions
 
-As of 2026-10-26 (Milestone 0): **no design decision has been approved yet.**
-See `DECISIONS.md` (D-01 … D-18). Scope from the master prompt:
+Approved 2026-10-26 (Milestone 0), see `DECISIONS.md`:
+- D-01: fresh repository; old GRU4Rec work discarded (decided by the author).
+- D-02: `IMPLEMENTATION_LOG.md` is the single source of truth; nothing is deleted.
+- D-03: fully synthetic catalogue and interactions for all main experiments; real
+  data is optional at M9 and needs separate approval.
+- D-04: open-loop evaluation on fixed sequences (from the master prompt).
+- D-05: `adaptdiv/` package, JSON configs, pytest, `results/<run_id>/`.
+- D-06: numpy, scipy, matplotlib, pandas, plus pytest (installed); no PyTorch.
+Still pending: D-07 (deadline) and D-08 … D-18 (to be confirmed at their milestones). Scope from the master prompt:
 controlled simulation where the true `z_t` is known; open-loop evaluation
 on fixed sequences; real-data validation is optional and needs approval.
 
@@ -155,7 +162,7 @@ Recorded 2026-10-26 (Milestone 0 inspection):
 - Python 3.12.10; numpy 2.5.2; scipy 1.18.0; pandas 3.0.5; matplotlib 3.11.1.
 - torch 2.13.0+cpu is installed (from the earlier phase) and is **not needed** by the
   new design.
-- **pytest is not installed** (proposed install, D-06).
+- ~~pytest is not installed~~ → pytest 9.1.1 installed 2026-10-26 (D-06 approved).
 - ~~Git repository; remote `origin = https://github.com/Shambo-Roy/ire-adaptive-session-rec.git`.~~
   (Superseded 2026-10-26: the author deleted that repository.)
 - Git repository, freshly initialised 2026-10-26, branch `main`; remote
@@ -209,9 +216,8 @@ Risks identified in Milestone 0 (mitigation in brackets):
     data can only be an optional, limited check.]
 
 ## 18. Decisions pending approval
-D-02 … D-18 in `DECISIONS.md` (D-01 was decided 2026-10-26). **Blocking now:** D-02
-(documentation), D-03 (data strategy), D-05 (repo structure), D-06 (pytest), and
-D-07 (deadline). D-08 … D-18 are preliminary and will be confirmed at their
+D-07 and D-08 … D-18 in `DECISIONS.md` (D-01 … D-06 were decided 2026-10-26).
+**Still blocking:** D-07 (deadline). D-08 … D-18 are preliminary and will be confirmed at their
 milestones.
 
 ## 19. Chronological milestone history
@@ -240,7 +246,9 @@ milestones.
   (§5), and validity risks (§17).
 - Created `IMPLEMENTATION_LOG.md`, `DECISIONS.md`, and a new `README.md`. No code
   written, no tests run, no experiments run.
-- **Status:** awaiting the author's review and approval.
+- **2026-10-26:** the author approved D-02 … D-06 as recommended. pytest 9.1.1 was
+  installed. The deadline (D-07) has not been given yet.
+- **Status:** awaiting the deadline and the go-ahead to start Milestone 1.
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 | RQ | Hypothesis | Experiment | Conclusion |

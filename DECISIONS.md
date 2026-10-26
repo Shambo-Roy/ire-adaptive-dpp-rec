@@ -56,7 +56,7 @@ log and can't be re-checked. Any real-data validation (D-03) would need new
 preprocessing code and the raw files supplied again.
 
 ### D-02 — Documentation: `IMPLEMENTATION_LOG.md` vs the older `DESIGN.md`
-**Status:** PENDING
+**Status:** APPROVED 2026-10-26 (as recommended)
 
 The earlier phase used a living `DESIGN.md`, with a standing rule never to delete
 entries for superseded components. The new prompt makes `IMPLEMENTATION_LOG.md` the
@@ -66,7 +66,7 @@ the same never-delete rule. Its "Prior work" section summarises `DESIGN.md` and
 points to commit `8fe712f` instead of keeping two parallel logs.
 
 ### D-03 — Catalogue and data strategy
-**Status:** PENDING
+**Status:** APPROVED 2026-10-26 (as recommended: option (a) synthetic for main experiments; (c) optional at M9, needs separate approval)
 
 | Option | Pros | Cons |
 |---|---|---|
@@ -92,13 +92,13 @@ simulator. A closed-loop (interactive) simulation is an optional extension that
 needs approval.
 
 ### D-05 — Repository structure
-**Status:** PENDING. See `IMPLEMENTATION_LOG.md` §4 for the proposed tree.
+**Status:** APPROVED 2026-10-26 (as recommended). See `IMPLEMENTATION_LOG.md` §4 for the tree.
 **Recommendation:** a small flat Python package (`adaptdiv/`), JSON experiment
 configs (to avoid a PyYAML dependency), `tests/` with pytest, and `results/<run_id>/`
 folders that each hold the exact config used.
 
 ### D-06 — Dependencies
-**Status:** PENDING
+**Status:** APPROVED 2026-10-26 (as recommended; pytest installed)
 
 Already installed: Python 3.12.10, numpy 2.5.2, scipy 1.18.0, pandas 3.0.5,
 matplotlib 3.11.1. **pytest is not installed.**

@@ -17,8 +17,8 @@ the interactions.
 | `hypothesis.md` | Research hypotheses (created after they are agreed in Milestone 1) |
 
 ## Environment
-Python 3.12, numpy, scipy, matplotlib, pandas. pytest for tests (to be installed,
-pending approval). No GPU or deep learning frameworks needed.
+Python 3.12, numpy, scipy, matplotlib, pandas. pytest for tests.
+No GPUNo GPU or deep learning frameworks needed.
 
 ## Commands
 *None yet. They will be added as each component is implemented.*
