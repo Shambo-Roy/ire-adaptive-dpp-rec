@@ -8,13 +8,14 @@ simulation** where the true interest vector `z_t` is known. The recommender sees
 the interactions.
 
 ## Status
-**Milestone 0 (research design): awaiting approval.** No code has been written yet.
+**Milestone 1 (literature and hypotheses): awaiting approval.** No code has been written yet.
 
 | Document | Purpose |
 |---|---|
 | `IMPLEMENTATION_LOG.md` | Full, dated record of design, maths, implementation, tests, results (source for the report) |
 | `DECISIONS.md` | Every important decision: alternatives, recommendation, approval status |
-| `hypothesis.md` | Research hypotheses (created after they are agreed in Milestone 1) |
+| `hypothesis.md` | Research hypotheses (created after approval; draft H1–H6 in `IMPLEMENTATION_LOG.md` §20) |
+| `literature/literature_matrix.md` | Verified literature matrix, gap analysis, reading list |
 
 ## Environment
 Python 3.12, numpy, scipy, matplotlib, pandas. pytest for tests.

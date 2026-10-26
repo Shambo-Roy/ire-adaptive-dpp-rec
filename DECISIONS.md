@@ -177,14 +177,14 @@ at M5).
 and `q` is real. Preliminary choice: `q_i = r_i · (ẑ_{t,c_i} + ε)^β`, with `ε > 0`
 so that no item gets zero quality just because its category hasn't been seen yet.
 A trade-off parameter between relevance and diversity, of the kind used by Chen et
-al. (2018) *(to verify, M1)*, will be specified and tuned the same way for every
+al. (2018) *(metadata verified, lit. A5; the exact trade-off form must be checked in the full text before M6)*, will be specified and tuned the same way for every
 DPP variant.
 
 ### D-15 — DPP inference algorithm (approve at M6)
 **Recommendation:** greedy MAP inference with incremental Cholesky updates (Chen,
-Zhang & Zhou, NeurIPS 2018 *(to verify, M1)*). Cost is `O(N K²)` after building the
+Zhang & Zhou, NeurIPS 2018 *(metadata verified, lit. A5)*). Cost (to confirm from the full text) is about `O(N K²)` after building the
 kernel. It must be described as an **approximate (greedy) MAP**, not an exact one:
-exact MAP for DPPs is NP-hard *(citation to verify, M1)*. Alternatives: exact
+exact MAP for DPPs is NP-hard (Ko, Lee & Queyranne 1995, lit. A3; NP-hardness of max-det subset selection). Alternatives: exact
 k-DPP sampling (stochastic, so it adds variance to evaluation) and naive greedy with
 repeated determinants (`O(N K⁴)`; useful only as a test oracle).
 
@@ -236,5 +236,52 @@ This will be benchmarked before asking to run the main experiments.
 
 ---
 
+## Group C — Raised in Milestone 1 (literature review)
+
+### D-19 — Add a calibration re-ranker (Steck 2018) as a baseline?
+**Status:** PENDING (raised 2026-10-26, M1)
+
+**Why it came up.** Steck (2018, literature B7) re-ranks a list so that its category
+distribution matches the user's interest distribution. Lin et al. (2024, B8) already
+contrast static and time-windowed profiles for calibration. Without this baseline, a
+reviewer can ask: "If you just want the list to follow `ẑ_t`, why not calibrate? Is
+the DPP needed?"
+
+| Option | Pros | Cons |
+|---|---|---|
+| (a) No calibration baseline | Less work | Leaves the "why a DPP?" question open |
+| (b) **Adaptive calibration re-ranker** (greedy, KL to `ẑ_t`), the same estimator fed to a different selector | Directly tests whether the DPP adds anything beyond matching category proportions | About one extra day of work. Steck's paper must be read in full first |
+| (c) Calibration and MMR both | Most complete | More methods and more multiple-comparison burden |
+
+**Recommendation: (b)**, run as a secondary comparison (not part of the 2×2). MMR stays
+optional.
+
+### D-20 — Hypotheses H1–H6
+**Status:** PENDING. Full text is in `IMPLEMENTATION_LOG.md` §20. `hypothesis.md`
+will be created only after approval. Exact metric formulas are fixed at M7 and the
+hypotheses are frozen (pre-registered) before any evaluation-seed run at M8.
+
+### D-21 — Statistical protocol and practical significance
+**Status:** PENDING
+
+- **Unit of analysis:** seed-level means (users averaged within a seed), paired
+  across methods because every method sees the same sequences. Alternative: user-level
+  analysis with seed as a cluster (more power, more complex).
+- **Test:** two-sided paired Wilcoxon signed-rank plus a paired bootstrap 95% CI of
+  the difference. Holm correction across the confirmatory family H1–H6.
+- **Smallest effect size of interest (SESOI), proposed:** relative difference
+  ≥ 3% in NDCG@K or expected utility; ≥ 2 interactions in adaptation lag;
+  ≥ 0.02 absolute in mean total-variation error. A result counts as *practically
+  meaningful* only if the whole CI lies beyond the SESOI.
+- The SESOI values may be revised at M7 using **tuning seeds only**, never after
+  seeing evaluation-seed results.
+
+---
+
 ## Revision history
 - 2026-10-26 — File created in Milestone 0. All entries are PENDING or PRELIMINARY.
+- 2026-10-26 — D-01 decided (fresh repo). D-02, D-03, D-05 and D-06 approved.
+- 2026-10-26 — Milestone 1: added D-19 (calibration baseline), D-20 (hypotheses) and
+  D-21 (statistical protocol). Citations in D-14/D-15 checked at metadata level (see
+  `literature/literature_matrix.md`, A3 and A5). The trade-off parametrisation in D-14
+  is still unverified until Chen et al. is read in full.
