@@ -65,7 +65,7 @@ at their own milestones). Scope from the master prompt:
 controlled simulation where the true `z_t` is known; open-loop evaluation
 on fixed sequences; real-data validation is optional and needs approval.
 
-## 3. Project architecture and data flow [PLANNED]
+## 3. Project architecture and data flow [simulator part IMPL+TESTED (M3); rest PLANNED]
 
 ```
   config (JSON) ──► seeding (SeedSequence) ──┬─► catalogue: items, categories c_i, embeddings φ_i, popularity π_i
@@ -87,7 +87,7 @@ plus categories/features derivable from the catalogue). Estimators and recommend
 accept **only** `ObservedSequence` truncated at time `t`. Only the metrics module
 receives `GroundTruth`. A test will check this.
 
-## 4. Repository structure [PLANNED — awaiting D-05]
+## 4. Repository structure [D-05 approved; files marked ✓ exist as of M3]
 
 ```
 IRE Project/
@@ -98,11 +98,11 @@ IRE Project/
 ├── hypothesis.md           approved hypotheses H1–H6 (frozen before evaluation runs)
 ├── literature/             (M1) literature matrix
 ├── adaptdiv/               Python package
-│   ├── config.py           dataclasses + JSON load/save
-│   ├── seeding.py          SeedSequence stream management
-│   ├── catalogue.py        item categories, embeddings, popularity
-│   ├── scenarios.py        z_t trajectory generators (stable/gradual/abrupt/noisy/recurrent)
-│   ├── simulator.py        interaction generation; GroundTruth vs ObservedSequence
+│   ├── config.py      ✓    dataclasses + JSON load/save
+│   ├── seeding.py     ✓    SeedSequence stream management
+│   ├── catalogue.py   ✓    item categories, embeddings, popularity
+│   ├── scenarios.py   ✓    z_t trajectory generators (stable/gradual/abrupt/noisy/recurrent)
+│   ├── simulator.py   ✓    interaction generation; GroundTruth vs ObservedSequence
 │   ├── estimators.py       cumulative mean, EWMA, sliding window
 │   ├── relevance.py        base relevance r_i, quality transform g
 │   ├── similarity.py       S = ΦΦᵀ (+ jitter), PSD checks
@@ -111,9 +111,10 @@ IRE Project/
 │   └── metrics.py          estimation, relevance, diversity, responsiveness
 ├── experiments/
 │   ├── configs/*.json
+│   ├── sim_check.py   ✓    M3 simulator check (tuning seeds only)
 │   └── run_experiment.py
 ├── analysis/               aggregation, statistics, plots
-├── tests/                  pytest
+├── tests/         ✓        pytest (conftest, catalogue/seeding, scenarios, simulator)
 └── results/<run_id>/       config.json, raw per-step metrics, summary, environment info
 ```
 
@@ -160,9 +161,41 @@ Generative model (M2, APPROVED 2026-10-26, not yet implemented; full spec in `SI
 - Noise floor: `TV((1−η) z + η/C, z) = η · TV(z, uniform)`.
 
 ## 6. Implementation details and important functions
-*None yet.*
 
-## 7. Data sources, preprocessing, data generation [PLANNED — design approved 2026-10-26; implementation is M3]
+### Simulator (Milestone 3, 2026-10-26) [IMPL+TESTED]
+Data flow for one seed: `simulator.generate(seed, cfg)` →
+`catalogue.generate_catalogue` (stream `CATALOGUE`) → `train_item_counts`
+(streams `TRAINING, j, …`) → for each `κ` index `k` and user `j`: `_user_params`
+(stream `USERS, k, j, PARAMS`) and a `(3, T)` uniform bank (stream
+`USERS, k, j, INTERACTIONS`) → for each scenario, `simulate_user` → `SimulatedUser(observed, truth)`.
+
+| Module / function | Role |
+|---|---|
+| `config.SimulationConfig` | Frozen dataclasses with the approved defaults; `save_json`/`load_json` for exact run configs. `TUNING_SEEDS` = 0–4, `EVALUATION_SEEDS` = 100–119 |
+| `seeding.stream(seed, *path)` | `SeedSequence(entropy=[PROJECT_TAG, seed], spawn_key=path)`. A stream depends only on (seed, path), so adding users or scenarios never changes existing draws |
+| `catalogue.generate_catalogue` | Centroids, embeddings `φ_i`, within-category popularity `π_i`. Items are grouped by category (item `i` is in category `i // n_c`). Arrays are read-only |
+| `catalogue.Catalogue.public()` | `PublicCatalogue` (categories and embeddings only), the view a recommender may receive |
+| `scenarios.sample_base_interest` | `z_A ~ Dirichlet(κ1)` |
+| `scenarios.half_swap_permutation` / `shifted_interest` | `z_B`: top-`C/2` categories ↔ bottom-`C/2` (random bijection); optional magnitude `m` |
+| `scenarios.mixing_weights` / `trajectory` | `w_t` per scenario; `z_t = (1−w_t) z_A + w_t z_B`, with row `k` = step `t = k+1` |
+| `simulator.item_conditional` | `(C, n_c)` matrix `P(i\|c,u) ∝ π_i^γ exp(λ ŝ_i(u))` (softmax per category, numerically stable) |
+| `simulator.sample_interactions` | Inverse-CDF sampling from the uniform bank: noise flag, category (signal or uniform noise), then item within the category. Fully vectorised over `t` |
+| `simulator.GroundTruth.item_distribution(k)` | Exact marginal `P_t(i)` for expected-utility metrics (M7) |
+| `simulator.ObservedSequence` | **Only** the item-id array (read-only) plus `prefix(n)` |
+| `simulator.train_item_counts` / `smoothed_popularity` | Training population counts (D-26); `r_i = (count_i+1)/(Σ+N)` |
+
+Implementation choices made at this stage (routine, consistent with the approved design):
+- The same uniform `U_cat[t]` serves both the signal draw (inverse CDF of `z_t`) and
+  the noise draw (`⌊U_cat·C⌋`). Which one is used depends on the noise flag. This keeps
+  three uniforms per step and preserves common random numbers.
+- The order of draws inside the PARAMS stream is fixed (`z_A`, permutation, `u`), so
+  changing one component later would change the others. This is documented, and the
+  reproducibility tests would detect a change.
+- Training users alternate `κ` levels (`j mod len(κ)`), use stable interests and the
+  base noise rate, and live under a separate `TRAINING` stream.
+- In `half_swap_permutation`, ties are broken by a stable sort, which is deterministic.
+
+## 7. Data sources, preprocessing, data generation [IMPL+TESTED 2026-10-26 (M3)]
 Fully synthetic catalogue and interactions (D-03, approved 2026-10-26).
 **Approved simulator design (M2, 2026-10-26): see `SIMULATION_DESIGN.md`** (catalogue §2,
 interests §3, scenarios §4, interaction model §5, firewall §6, seeds §7, scale §8,
@@ -187,7 +220,14 @@ noise `η`, interest concentration `κ`, drift speed `W`, and the DPP trade-off.
 Exact formulas will be written here at M7 and hand-checked in tests.
 
 ## 11. Commands used to run experiments
-*None yet.*
+Run from the repository root (`ire-adaptive-dpp-rec/`):
+```bash
+python -m pytest -q                      # full test suite
+python experiments/sim_check.py          # M3 simulator check on tuning seeds 0-4
+```
+`sim_check.py` refuses evaluation seeds (≥ 100). Output goes to
+`results/m3_sim_check/<run_id>/` (`config.json`, `summary.json`,
+`environment.json`, `trajectories.png`).
 
 ## 12. Environment and dependency information
 Recorded 2026-10-26 (Milestone 0 inspection):
@@ -202,10 +242,51 @@ Recorded 2026-10-26 (Milestone 0 inspection):
   `origin = https://github.com/Shambo-Roy/ire-adaptive-dpp-rec` (public).
 
 ## 13. Test cases and outcomes
-*No tests yet.* Milestone 0 contains no executable code.
+
+### Milestone 3 (2026-10-26): `python -m pytest -q` → **39 passed in 0.66 s** (pytest 9.1.1)
+| File | What is checked |
+|---|---|
+| `test_catalogue_and_seeding.py` (8) | shapes and grouping; unit norms; popularity positive and summing to 1 per category; within/across cosine ≈ 0.50/0.00 (10 catalogues, tolerance 0.03); public view hides popularity and centroids; read-only arrays; same seed gives the same catalogue and different seeds differ; streams depend only on (seed, path); JSON config round-trip |
+| `test_scenarios.py` (13) | `z_A` on the simplex (both `κ`); E[max z] ≈ 0.665/0.293 (5,000 draws, tol 0.02); half-swap is a permutation that moves every top category into the bottom half and keeps the sorted values; mean shift TV ≈ 0.99/0.65 (3,000 draws, tol 0.03); partial-shift magnitude; every scenario on the simplex; exact switch points (abrupt 100, recurrent 70/140, gradual 80–120 with `w=0.5` at t=100); noise rates |
+| `test_simulator.py` (18) | conditional rows are distributions; `λ=0` reduces to `π^γ`; **200,000-step stable sequence**: noise rate within 0.005 of `η`, category-frequency TV < 0.01, item-frequency TV < 0.03 vs the model; exact marginal `P_t(i)`; item ids consistent with categories; **common random numbers** (stable = abrupt for t<100, = recurrent for t<70, = gradual for t≤80; noisy differs only where its noise flag differs); post-switch interactions follow `z_B` (pooled TV gap > 0.2); reproducible `generate`; adding users leaves existing users unchanged; different seeds differ; params shared across scenarios; **firewall** (`ObservedSequence` has only `items`, integer and read-only; ground-truth arrays read-only); training counts sum correctly and are independent of the number of evaluation users |
+
+Statistical tests use fixed seeds, so they are deterministic. Their tolerances were set
+before running, from the expected Monte Carlo error.
 
 ## 14. Experiment results
-*No experiments run yet. No results exist.*
+*No recommendation experiments have been run.*
+
+### M3 simulator verification run (not a hypothesis test) [IMPL+TESTED]
+- **Run:** `results/m3_sim_check/20261026-192349` (default `SimulationConfig`, tuning seeds 0–4, 2026-10-26).
+- **Scale per seed:** 200,000 evaluation interactions (2 `κ` × 5 scenarios × 100 users
+  × 200) plus 50,000 training interactions.
+- **Generation time:** 0.22–0.25 s per seed (Windows 11, 20 logical CPUs, NumPy
+  2.5.2, single process). Full 20-seed generation would take about 5 s, so generation is
+  not a bottleneck.
+- **Catalogue:** mean cosine within category 0.496–0.505, across −0.015…0.018. No
+  item had zero training count.
+- **Means over seeds** (`maxz` = mean max component of `z_A`; `noise` = observed
+  noise-flag rate; `repeat` = fraction of interactions repeating an item the user
+  already clicked):
+
+| κ | scenario | shift TV | maxz | noise | repeat |
+|---|---|---|---|---|---|
+| 0.1 | stable / abrupt / gradual / recurrent / noisy | 0.991 | 0.657 | 0.050 (noisy 0.300) | 0.61 / 0.48 / 0.48 / 0.49 / 0.49 |
+| 1.0 | stable / abrupt / gradual / recurrent / noisy | 0.642 | 0.289 | 0.049 (noisy 0.299) | 0.41 / 0.35 / 0.35 / 0.35 / 0.37 |
+
+- **Windowed tracking** (TV between the category frequency of 20 consecutive
+  interactions and the window-average of `(1−η) z_t + η/C`): flat across all ten
+  windows in every scenario (focused 0.14–0.15, spread 0.23–0.24; noisy 0.22 /
+  0.25–0.26). The generator therefore follows `z_t` with no lag of its own. The level
+  is the sampling noise of 20 draws, which is larger for higher-entropy distributions.
+  This is why the focused gradual windows covering the ramp (t = 81–120) rise to
+  0.19–0.20: mid-ramp, `z_t` is a mixture of two focused vectors and so has higher
+  entropy.
+- **Within-category concentration** (seed 0, focused users, separate quick check):
+  effective number of items `exp(H(P(·|c,u)))` = 29.2 of 50; the top-5 items take 40%
+  of clicks in a category.
+- `trajectories.png`: one example user per scenario and `κ`. True `z_t` for the top
+  categories of `z_A` and `z_B` against the rolling 20-interaction observed frequency.
 
 ## 15. Problems encountered and resolutions
 - **2026-10-26 (M0):** The working tree was found with every tracked file deleted
@@ -237,6 +318,18 @@ Recorded 2026-10-26 (Milestone 0 inspection):
 - **2026-10-26 (M2):** the author started M2 without approving D-19 … D-21. M2 doesn't
   depend on D-19 (a baseline) or D-21 (statistics). It is consistent with draft
   hypotheses H3 and H5 (noisy scenario, `κ` factor), but they stay pending.
+
+- **2026-10-26 (M3):** observation, not a defect: a high **repeat rate** (61% of a
+  focused user's stable-scenario clicks repeat an earlier item). It follows from the
+  approved choices: repeats allowed (D-24), log-normal popularity with `s_pop = 1`,
+  `γ = 1`. Consequence for later milestones: a popularity-within-category Top-K list
+  will match many held-out next items, so next-item metrics may reward popularity
+  strongly. To revisit at M5/M7 (e.g. report popularity-only results, and consider
+  `s_pop` sensitivity). No change made without approval.
+- **2026-10-26 (M3):** the parent folder `IRE Project/` held a stale checkout after
+  the author made `ire-adaptive-dpp-rec/` the main folder. Its `.git` was checked
+  (all commits, up to `391744c`, are contained in the main repo and on GitHub; no
+  stash) and deleted on the author's instruction.
 
 ## 16. Failed approaches and negative results
 *No implemented approach has failed yet.* Design-stage alternatives that were
@@ -282,10 +375,17 @@ Added in Milestone 2:
 14. **Uniform noise model.** Real off-interest clicks may be popularity-driven.
     [Stated limitation.]
 
+Added in Milestone 3:
+15. **Popularity-dominated repeats.** With repeats allowed and skewed within-category
+    popularity, many next items are already-seen popular items (§14). Relevance
+    metrics could then favour popularity-heavy rankers regardless of adaptation.
+    [Report a popularity-only baseline; decide at M5/M7 whether a no-repeat target
+    variant or an `s_pop` sensitivity check is needed.]
+
 ## 18. Decisions pending approval
-As of 2026-10-26, everything needed for M3 is approved. Open: D-07 (deadline,
-since M0); D-11 (estimators, M4); D-12, D-13 (M5); D-14 … D-16 (M6); D-17 (M7);
-the scale part of D-18 (M8).
+As of 2026-10-26 (after M3): open items are D-07 (deadline, since M0); D-11
+(estimators, needed for M4); D-12, D-13 (M5); D-14 … D-16 (M6); D-17 (M7); the scale
+part of D-18 (M8).
 
 ## 19. Chronological milestone history
 
@@ -354,8 +454,21 @@ the scale part of D-18 (M8).
 - **2026-10-26:** the author approved the M2 design (D-08, D-09, D-10, D-22 … D-26,
   seed protocol) and the M1 decisions D-19 (option b), D-20 and D-21, all as proposed.
   `hypothesis.md` was created from the approved H1–H6. Not committed.
-- **Status:** complete. Awaiting the go-ahead for Milestone 3 (simulator
-  implementation and tests).
+- **Update:** the M2 changes were committed outside this session as `391744c`
+  ("MIlestone-2", author `Salvotore-Originals`) and pushed to origin. On 2026-10-26
+  the author made the clone `IRE Project/ire-adaptive-dpp-rec/` the main folder.
+- **Status:** complete.
+
+### Milestone 3 — Simulator implementation and tests (2026-10-26)
+- Implemented `adaptdiv/` (`config`, `seeding`, `catalogue`, `scenarios`,
+  `simulator`) exactly as specified in `SIMULATION_DESIGN.md` (§6 of this log).
+- Wrote 39 pytest tests (§13). All pass.
+- Added `experiments/sim_check.py`. Ran it on tuning seeds 0–4 (§14): scenario
+  behaviour as designed, generation about 0.23 s per seed.
+- New observation: high repeat rate driven by popularity (§15, risk 15).
+- Cleaned up the parent folder on instruction (§15).
+- No git commit (the author's standing instruction).
+- **Status:** awaiting the author's review. Milestone 4 (estimators) needs D-11.
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
@@ -423,6 +536,30 @@ trade-off parameter; the calibration re-ranker (if D-19 is approved) vs Adaptive
 - **Why can't greedy DPP be called "the MAP"?** Selecting the max-determinant subset
   is NP-hard (Ko, Lee & Queyranne 1995). Greedy is a fast heuristic, and better
   approximations exist (Gillenwater et al. 2012).
+
+### Milestone 3
+- **How do you guarantee reproducibility?** Every random draw comes from
+  `SeedSequence(entropy=[PROJECT_TAG, seed], spawn_key=path)`. The path names *what*
+  is drawn (catalogue, training user `j`, evaluation user `(k, j)`, params vs
+  interactions), so results depend only on (seed, path). Tests check that the same seed
+  gives identical data and that adding users leaves existing users unchanged.
+- **What is inverse-CDF sampling, and why use it here?** To draw from probabilities
+  `p`, take `U ~ Uniform(0,1)` and return the first index whose cumulative sum
+  exceeds `U`. Because we store `U` per user and step, every scenario reuses the same
+  `U`. Two scenarios with the same `z_t` at step `t` therefore produce the same click.
+  That is how "identical before the switch" is achieved and tested.
+- **How do you know the simulator follows `z_t`?** A 200,000-step test shows
+  empirical category frequencies within TV 0.01 of `(1−η) z + η/C`. In the check
+  run, windowed tracking error is flat over time, so there is no generator lag. A test
+  also checks that post-switch clicks match `z_B`, not `z_A`.
+- **How is leakage prevented in code?** `ObservedSequence` has exactly one field
+  (`items`), checked by a test. Hidden quantities live only in `GroundTruth`, and all
+  arrays are read-only. Later milestones' recommenders will receive
+  `ObservedSequence` + `PublicCatalogue` + training popularity only.
+- **Why is the repeat rate so high, and does it matter?** Popularity is skewed (the
+  top-5 items take 40% of a category's clicks) and repeats are allowed, so focused
+  users re-click popular items. It matters for next-item metrics, which could reward
+  popularity. We will report a popularity baseline and revisit it at M5/M7.
 
 ### Milestone 2
 - **Why is `z_B` a permutation of `z_A` instead of a fresh Dirichlet draw?** A fresh

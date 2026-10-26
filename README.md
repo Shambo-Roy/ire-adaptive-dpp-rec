@@ -8,7 +8,7 @@ simulation** where the true interest vector `z_t` is known. The recommender sees
 the interactions.
 
 ## Status
-**Milestone 2 (simulation design): approved.** Next: Milestone 3 (simulator implementation). No code has been written yet.
+**Milestone 3 (simulator implementation): complete, awaiting review.** The simulator is implemented and tested. Estimators, DPP and experiments are not implemented yet.
 
 | Document | Purpose |
 |---|---|
@@ -23,7 +23,19 @@ Python 3.12, numpy, scipy, matplotlib, pandas. pytest for tests.
 No GPU or deep learning frameworks needed.
 
 ## Commands
-*None yet. They will be added as each component is implemented.*
+Run from this folder:
+```bash
+python -m pytest -q                  # run all tests
+python experiments/sim_check.py      # simulator check on tuning seeds 0-4 -> results/m3_sim_check/<run_id>/
+```
+
+## Code layout
+```
+adaptdiv/      config, seeding, catalogue, scenarios, simulator   (Milestone 3)
+experiments/   sim_check.py
+tests/         pytest suite
+results/       per-run outputs (config, summary, environment, plots)
+```
 
 ## Prior work
 An earlier exploratory GRU4Rec baseline was discarded when this repository was

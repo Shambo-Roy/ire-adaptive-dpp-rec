@@ -1,6 +1,6 @@
 # SIMULATION_DESIGN.md — Catalogue, latent interests, drift, interaction model
 
-**Status: APPROVED 2026-10-26 (Milestone 2). Not yet implemented.**
+**Status: APPROVED 2026-10-26 (Milestone 2). IMPLEMENTED and tested in Milestone 3 (`adaptdiv/`, 39 tests).**
 This file is the specification that Milestone 3 implements and tests against. Any later change must be recorded as a dated
 revision at the bottom; the old text is kept.
 
@@ -214,4 +214,5 @@ last decimal place.
 
 ## Revision history
 - 2026-10-26 — Created (Milestone 2 proposal).
+- 2026-10-26 — Implemented in M3 with no change to the specification. Implementation detail: a single uniform per step serves both the signal and the noise category draw (see `IMPLEMENTATION_LOG.md` §6).
 - 2026-10-26 — Approved by the author as proposed (D-08 … D-10, D-22 … D-26, seed protocol).
