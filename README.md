@@ -8,7 +8,7 @@ simulation** where the true interest vector `z_t` is known. The recommender sees
 the interactions.
 
 ## Status
-**Milestone 3 (simulator implementation): complete, awaiting review.** The simulator is implemented and tested. Estimators, DPP and experiments are not implemented yet.
+**Milestone 4 (interest estimators): complete, awaiting review (and decision D-27).** The simulator and estimators are implemented and tested. Relevance, DPP and the main experiments are not implemented yet.
 
 | Document | Purpose |
 |---|---|
@@ -27,12 +27,14 @@ Run from this folder:
 ```bash
 python -m pytest -q                  # run all tests
 python experiments/sim_check.py      # simulator check on tuning seeds 0-4 -> results/m3_sim_check/<run_id>/
+python experiments/estimator_study.py # estimator tuning/comparison on tuning seeds -> results/m4_estimators/<run_id>/
 ```
 
 ## Code layout
 ```
 adaptdiv/      config, seeding, catalogue, scenarios, simulator   (Milestone 3)
-experiments/   sim_check.py
+               estimators, estimation_metrics                     (Milestone 4)
+experiments/   sim_check.py, estimator_study.py
 tests/         pytest suite
 results/       per-run outputs (config, summary, environment, plots)
 ```

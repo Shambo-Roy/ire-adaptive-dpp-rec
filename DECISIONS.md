@@ -159,6 +159,7 @@ acts on interactions, never on `z_t`. Concentration is a crossed factor
 `κ ∈ {0.1, 1.0}` (D-23), and `z_B` is a half-swap permutation of `z_A` (D-23).
 
 ### D-11 — Interest estimator (approve at M4)
+**Status:** APPROVED 2026-10-28 (as recommended). Implemented in M4 (`adaptdiv/estimators.py`). See D-27 for an issue found during M4.
 Candidates, all using `x_t` = the one-hot category of the observed item:
 - **Cumulative mean** (non-adaptive): `ẑ_t = ẑ_{t−1} + (x_t − ẑ_{t−1})/t`
 - **EWMA** (proposed adaptive): `ẑ_t = (1−α) ẑ_{t−1} + α x_t`
@@ -352,6 +353,37 @@ model remains D-13, approved at M5.
 
 ---
 
+## Group E — Raised in Milestone 4 (estimators)
+
+### D-27 — EWMA initialisation: uniform start vs bias-corrected start
+**Status:** PENDING (raised 2026-10-28, M4)
+
+**What we found** (M4 study, tuning seeds; `IMPLEMENTATION_LOG.md` §14). Approved D-11 starts
+EWMA from `ẑ_0 = uniform`. That start fades as `(1−α)^t`: about 23% of it remains
+after 20 steps at `α = 0.07`. The cumulative mean and the window use only the
+observations from `t = 1`. Consequences:
+- Focused users (`κ = 0.1`): EWMA's early error is much higher (the plot starts at
+  0.67 vs 0.50). Its stable-scenario error after burn-in is 0.121 vs 0.076 for the
+  cumulative mean. Part of that gap is initialisation, not forgetting.
+- Spread users (`κ = 1.0`): the uniform start *helps*, because spread interests are
+  close to uniform.
+- Small `α` is penalised most (`α = 0.02` has a stable error of 0.173 for focused
+  users, worse than `α = 0.05`). This can distort `α` tuning and the H2 comparison
+  ("cost of adaptation"): H2 would partly measure the prior, not forgetting.
+
+| Option | Definition | Pros | Cons |
+|---|---|---|---|
+| (a) Keep the uniform start (as approved) | `ẑ_0 = 1/C`, then the EWMA update | Already implemented; simple; never produces exact zeros early | Confounds H2 with initialisation; the comparison with the cumulative mean is unequal |
+| (b) **Bias-corrected EWMA** | `m_t = (1−α) m_{t−1} + α x_t`, `m_0 = 0`; `ẑ_t = m_t / (1 − (1−α)^t)`; `ẑ_0` = uniform | Uses observations only, like the other two estimators. Still a probability vector. It equals the normalised exponentially weighted average of `x_1..x_t`. With `α → 0` it becomes the cumulative mean | One more line of maths to explain (the same correction Adam uses) |
+| (c) Uniform prior for **all** estimators (pseudo-count `n_0`) | Add `n_0` uniform pseudo-observations to cumulative and window too | Equal treatment; smooths early estimates | Adds a hyperparameter `n_0`; changes the approved cumulative/window definitions |
+
+**Recommendation: (b)**, keeping (a) as an ablation. It makes the three estimators
+differ *only* in how they weight past observations, which is exactly the adaptation
+question. Zero estimates for unseen categories are then handled where they matter,
+in the quality transform (`ε` in D-14).
+
+---
+
 ## Revision history
 - 2026-10-26 — File created in Milestone 0. All entries are PENDING or PRELIMINARY.
 - 2026-10-26 — D-01 decided (fresh repo). D-02, D-03, D-05 and D-06 approved.
@@ -361,6 +393,7 @@ model remains D-13, approved at M5.
   is still unverified until Chen et al. is read in full.
 - 2026-10-26 — Milestone 2: D-08, D-09 and D-10 updated and proposed for approval;
   added D-22 … D-26. Specification in `SIMULATION_DESIGN.md`.
+- 2026-10-28 — D-11 approved; implemented in M4. Added D-27 (EWMA initialisation).
 - 2026-10-26 — Author approved D-08, D-09, D-10, the seed protocol (D-18, part),
   D-19 (option b), D-20, D-21 and D-22 … D-26, all as proposed. Still open: D-07
   (deadline) and D-11 … D-17 plus the scale part of D-18 (confirmed at their own

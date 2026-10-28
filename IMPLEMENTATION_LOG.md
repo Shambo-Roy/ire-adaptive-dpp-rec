@@ -195,6 +195,35 @@ Implementation choices made at this stage (routine, consistent with the approved
   base noise rate, and live under a separate `TRAINING` stream.
 - In `half_swap_permutation`, ties are broken by a stable sort, which is deterministic.
 
+### Interest estimators (Milestone 4, 2026-10-28) [IMPL+TESTED]
+`adaptdiv/estimators.py`. Input: the **observed** category sequence, obtained with
+`categories_of(observed.items, public_catalogue.categories)`. Nothing from
+`GroundTruth` is used. Output: `ẑ_0..ẑ_T` with shape `(B, T+1, C)`; row `t` uses
+`c_1..c_t` only (tested: changing later observations leaves earlier estimates
+unchanged). Batched over users with a loop over `T` (EWMA) or cumulative sums
+(cumulative mean, window).
+
+| Function | Definition |
+|---|---|
+| `cumulative_mean` | `ẑ_0` uniform; `ẑ_t = (1/t) Σ_{s≤t} x_s` |
+| `ewma(alpha)` | `ẑ_0` uniform; `ẑ_t = (1−α) ẑ_{t−1} + α x_t` (as approved in D-11; see D-27) |
+| `sliding_window(W)` | `ẑ_0` uniform; `ẑ_t = (1/min(t,W)) Σ_{s=max(1,t−W+1)}^{t} x_s` |
+| `ewma_mean_age`, `matched_window` | mean age `(1−α)/α`; equal-mean-age window `W = 2/α − 1` |
+| `EstimatorSpec(kind, param)` | named, callable configuration used by experiments |
+
+`adaptdiv/estimation_metrics.py` (**PROVISIONAL** until D-17 is approved at M7):
+- `tracking_error`: `TV(ẑ_t, z_t)`, `t = 1..T`. Here `ẑ_t` includes the `t`-th
+  observation, which was generated from `z_t`.
+- `crossover_lag(start, run=5)`: the smallest `L ≥ 0` such that `ẑ_t` is closer (in TV)
+  to the new interest than to the old one for `t = start+L … start+L+4`. If never,
+  `L = T−start+1` and the case is flagged *censored*. `start` = 100 (abrupt), 100
+  (gradual midpoint, where the truth is equidistant), and 70 and 140 (recurrent; the
+  second switch is B→A).
+- `false_switch_rate(burn_in=20)`: the fraction of steps `t > 20` at which
+  `argmax ẑ_t ≠ argmax ẑ_{t−1}` while `argmax z_t = argmax z_{t−1}`.
+- `noise_floor`: `η · TV(z_t, uniform)`, the error of a perfect tracker of the
+  observed-category distribution.
+
 ## 7. Data sources, preprocessing, data generation [IMPL+TESTED 2026-10-26 (M3)]
 Fully synthetic catalogue and interactions (D-03, approved 2026-10-26).
 **Approved simulator design (M2, 2026-10-26): see `SIMULATION_DESIGN.md`** (catalogue §2,
@@ -224,6 +253,7 @@ Run from the repository root (`ire-adaptive-dpp-rec/`):
 ```bash
 python -m pytest -q                      # full test suite
 python experiments/sim_check.py          # M3 simulator check on tuning seeds 0-4
+python experiments/estimator_study.py    # M4 estimator tuning + comparison on tuning seeds 0-4 (~12 s)
 ```
 `sim_check.py` refuses evaluation seeds (≥ 100). Output goes to
 `results/m3_sim_check/<run_id>/` (`config.json`, `summary.json`,
@@ -255,6 +285,60 @@ before running, from the expected Monte Carlo error.
 
 ## 14. Experiment results
 *No recommendation experiments have been run.*
+
+### M4 estimator study (exploratory, tuning seeds 0–4; not a hypothesis test) [IMPL+TESTED]
+- **Run:** `results/m4_estimators/20261028-121944` (default `SimulationConfig`; 2 `κ` × 5 scenarios × 100 users ×
+  200 steps per seed; runtime about 12 s). The EWMA uses the uniform start approved in
+  D-11 (see D-27).
+- **Tuning (D-25: pooled over all scenarios, both `κ`, all steps, 5 seeds)**, mean
+  `TV(ẑ_t, z_t)`:
+
+| estimator | pooled mean TV |
+|---|---|
+| cumulative | 0.2808 |
+| EWMA α = 0.02 / 0.03 / 0.05 / **0.07** / 0.1 / 0.15 / 0.2 / 0.3 / 0.5 | 0.2818 / 0.2474 / 0.2230 / **0.2216** / 0.2330 / 0.2612 / 0.2906 / 0.3452 / 0.4384 |
+| window W = 3 / 5 / 7 / 10 / 15 / 20 / 30 / **40** / 60 / 100 | 0.4663 / 0.3787 / 0.3301 / 0.2878 / 0.2512 / 0.2328 / 0.2182 / **0.2164** / 0.2280 / 0.2617 |
+
+  Selected: **α\* = 0.07**, **W\* = 40**. The window with the same mean age as
+  α\* is W = 28.
+
+- **Per scenario** (mean over 5 tuning seeds; error = mean TV over steps 21–200;
+  pre/post = mean TV over steps 21…switch−1 / the 50 steps after each switch; lag =
+  mean crossover lag in steps, with the censored fraction in brackets; seed-to-seed SD
+  of the error ≤ 0.006 throughout):
+
+| κ | scenario | cumulative | EWMA(0.07) | window(40) | window(28) |
+|---|---|---|---|---|---|
+| 0.1 | stable: error / false-switch rate | 0.076 / 0.009 | 0.121 / 0.044 | 0.101 / 0.019 | 0.115 / 0.027 |
+| 0.1 | abrupt: post / lag | 0.791 / 98.7 (69% cens.) | 0.317 / 9.3 | 0.425 / 19.5 | 0.334 / 13.5 |
+| 0.1 | gradual: post / lag | 0.685 / 98.0 (67%) | 0.254 / 12.7 | 0.341 / 20.1 | 0.259 / 14.1 |
+| 0.1 | recurrent: post / lag | 0.587 / 53.7 (31%) | 0.314 / 9.2 | 0.424 / 19.5 | 0.333 / 13.5 |
+| 0.1 | noisy: error / false-switch | 0.228 / 0.009 | 0.257 / 0.050 | 0.242 / 0.023 | 0.251 / 0.032 |
+| 1.0 | stable: error / false-switch | 0.115 / 0.024 | 0.202 / 0.138 | 0.172 / 0.069 | 0.202 / 0.095 |
+| 1.0 | abrupt: post / lag | 0.513 / 93.2 (56%) | 0.283 / 9.9 | 0.324 / 19.6 | 0.301 / 13.7 |
+| 1.0 | gradual: post / lag | 0.446 / 94.0 (60%) | 0.247 / 13.2 | 0.268 / 20.2 | 0.252 / 14.5 |
+| 1.0 | recurrent: post / lag | 0.383 / 52.1 (27%) | 0.282 / 9.9 | 0.324 / 19.8 | 0.301 / 13.7 |
+| 1.0 | noisy: error / false-switch | 0.160 / 0.026 | 0.234 / 0.161 | 0.207 / 0.082 | 0.235 / 0.107 |
+
+  Noise floors: `κ=0.1` 0.035 (noisy 0.212); `κ=1.0` 0.017 (noisy 0.103).
+- **α trade-off (EWMA, abrupt and noisy, κ = 0.1):** as α goes 0.02 → 0.5, the
+  crossover lag falls 30.5 → 0.7 steps, while the noisy-scenario false-switch rate
+  rises 0.017 → 0.680. The stable error is U-shaped (0.173 at α=0.02, minimum 0.117 at
+  α=0.05, 0.291 at α=0.5). The rise at small α comes from the uniform start (D-27).
+- **Oracle (per-scenario) α**, for the "oracle-tuned" sensitivity of D-25: `κ=0.1`:
+  stable 0.07, abrupt 0.1, gradual 0.1, recurrent 0.15, noisy 0.07; `κ=1.0`: stable
+  0.02, abrupt/gradual/recurrent 0.05, noisy 0.02.
+- **Plots:** `tuning_curves.png`, `error_over_time.png` (error curves per scenario and
+  `κ` with the noise floor).
+- **Reading (exploratory, tuning seeds; directional only):** the patterns are in the
+  directions predicted by H1 (EWMA recovers about 10× faster than the cumulative mean,
+  which is mostly censored), H2 (the cumulative mean is more accurate in the stable
+  scenario) and H3 (EWMA has about 5× more false switches). These are *not* tests of
+  H1–H3. The confirmatory tests use the evaluation seeds at M8, after the freeze.
+- **Matched memory is not matched lag:** EWMA(0.07) and window(28) have the same mean
+  observation age (about 13 steps), but EWMA crosses over faster (9.3 vs 13.5 steps).
+  EWMA puts more weight on the very latest observations, while the window weights its
+  W observations equally.
 
 ### M3 simulator verification run (not a hypothesis test) [IMPL+TESTED]
 - **Run:** `results/m3_sim_check/20261026-192349` (default `SimulationConfig`, tuning seeds 0–4, 2026-10-26).
@@ -375,6 +459,19 @@ Added in Milestone 2:
 14. **Uniform noise model.** Real off-interest clicks may be popularity-driven.
     [Stated limitation.]
 
+Added in Milestone 4:
+16. **EWMA initialisation confound (D-27).** With the uniform start, the stable-scenario
+    gap between EWMA and the cumulative mean mixes two causes: forgetting and the
+    prior. [Pending D-27; recommendation: bias-corrected EWMA.]
+17. **Tuning objective depends on the scenario mix.** `α*` minimises error over a
+    pooled mix in which 2 of 5 scenarios have no drift. A different mix would change
+    `α*` (the oracle α ranges 0.02–0.15). [Report the oracle-tuned sensitivity (D-25).
+    The mix is fixed before M8.]
+18. **Tuning for estimation vs for recommendation.** `α*` here minimises estimation
+    error. The recommender's best `α` (M6/M8) may differ. [Decide at M6 whether the
+    recommenders reuse `α*` or retune on a recommendation metric, using tuning seeds
+    only.]
+
 Added in Milestone 3:
 15. **Popularity-dominated repeats.** With repeats allowed and skewed within-category
     popularity, many next items are already-seen popular items (§14). Relevance
@@ -383,9 +480,9 @@ Added in Milestone 3:
     variant or an `s_pop` sensitivity check is needed.]
 
 ## 18. Decisions pending approval
-As of 2026-10-26 (after M3): open items are D-07 (deadline, since M0); D-11
-(estimators, needed for M4); D-12, D-13 (M5); D-14 … D-16 (M6); D-17 (M7); the scale
-part of D-18 (M8).
+As of 2026-10-28 (after M4): open items are **D-27 (EWMA initialisation, raised in
+M4)**; D-07 (deadline, since M0); D-12, D-13 (M5); D-14 … D-16 (M6); D-17 (M7, which
+also locks the provisional estimation metrics); the scale part of D-18 (M8).
 
 ## 19. Chronological milestone history
 
@@ -468,7 +565,25 @@ part of D-18 (M8).
 - New observation: high repeat rate driven by popularity (§15, risk 15).
 - Cleaned up the parent folder on instruction (§15).
 - No git commit (the author's standing instruction).
-- **Status:** awaiting the author's review. Milestone 4 (estimators) needs D-11.
+- **Status:** reviewed. Committed as `ea1cc38` and pushed on the author's
+  instruction.
+
+### Milestone 4 — Adaptive interest estimation (2026-10-28)
+- D-11 approved by the author. Implemented `adaptdiv/estimators.py` (cumulative mean,
+  EWMA, sliding window, matched-memory helpers) and the provisional
+  `adaptdiv/estimation_metrics.py` (tracking error, crossover lag, false-switch rate,
+  noise floor).
+- 26 new tests: hand-checked values, unrolled-formula equivalence, limiting cases,
+  simplex invariants, no look-ahead, batch = single, convergence, effect of an
+  isolated noisy click, metric hand examples. Full suite: **65 passed**.
+- `experiments/estimator_study.py` on tuning seeds 0–4: `α* = 0.07`, `W* = 40` (pooled
+  objective). Per-scenario results in §14.
+- Found the EWMA initialisation confound and raised D-27 (not changed without
+  approval).
+- Moved the assistant's project memory to the new folder's memory path (no repo
+  change).
+- No git commit.
+- **Status:** awaiting review and a decision on D-27.
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
@@ -560,6 +675,33 @@ trade-off parameter; the calibration re-ranker (if D-19 is approved) vs Adaptive
   top-5 items take 40% of a category's clicks) and repeats are allowed, so focused
   users re-click popular items. It matters for next-item metrics, which could reward
   popularity. We will report a popularity baseline and revisit it at M5/M7.
+
+### Milestone 4
+- **Why does EWMA stay on the simplex without renormalising?** If `ẑ_{t−1}` is a
+  probability vector and `x_t` is one-hot, then `(1−α) ẑ_{t−1} + α x_t` is a convex
+  combination of two probability vectors. It is non-negative and sums to
+  `(1−α) + α = 1`.
+- **What does α control?** The weight of an observation of age `a` is `α(1−α)^a`. Large
+  `α` forgets fast: short lag, but noisy and prone to false switches. Small `α`
+  averages more: stable, but slow after drift. In our tuning-seed study, lag fell from
+  about 30 to under 1 step as `α` went 0.02 → 0.5, while noisy false switches rose
+  from 2% to 68%.
+- **What happens after one noisy click?** EWMA moves exactly `α` of the way towards
+  that click's category (tested). With `α = 0.07` one off-interest click can't change
+  the dominant category of a focused user.
+- **Why compare at matched memory, and what did we find?** `W = 2/α − 1` gives EWMA and
+  the window the same mean observation age. Even so, EWMA crossed over faster (9.3 vs
+  13.5 steps), because geometric weights favour the newest observations.
+- **Why is the cumulative-mean lag "censored"?** After a switch at step 100, the
+  cumulative mean needs as many post-switch clicks as pre-switch ones before it leans
+  towards the new interest. Within 200 steps it often never does, so the lag is only a
+  lower bound.
+- **What is the noise floor?** Even a perfect tracker of the click distribution is off
+  by `η · TV(z, uniform)` from the true interest, because noisy clicks are spread
+  uniformly. Errors near the floor can't be improved by any estimator.
+- **What is the initialisation issue (D-27)?** The uniform `ẑ_0` decays as `(1−α)^t`. It
+  biases EWMA towards uniform early on: bad for focused users, good for spread ones.
+  The bias-corrected version uses observations only.
 
 ### Milestone 2
 - **Why is `z_B` a permutation of `z_A` instead of a fresh Dirichlet draw?** A fresh
