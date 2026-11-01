@@ -67,8 +67,11 @@ Approved 2026-10-28 / 2026-11-01:
 - D-12, D-13 (2026-11-01): `S = ΦΦᵀ + εI`; all items are candidates with no exclusion;
   within-category popularity as base relevance; global popularity only for the
   Popularity Top-K floor.
-Still pending: D-07 (deadline); D-14 … D-17 and the scale part of D-18 (confirmed
-at their own milestones). Scope from the master prompt:
+- D-14, D-15, D-16, D-28 (2026-11-01): log-score objective, Chen-style greedy on `S`, the
+  method list, and reuse of `α* = 0.05`.
+- D-17, D-29, D-30 (2026-11-01): metrics, `θ` rule, confirmatory tests. Selected `θ = 0.5`.
+  The analysis is **frozen** in `hypothesis.md`.
+Still pending: D-07 (deadline); the scale part of D-18 (M8). Scope from the master prompt:
 controlled simulation where the true `z_t` is known; open-loop evaluation
 on fixed sequences; real-data validation is optional and needs approval.
 
@@ -114,9 +117,12 @@ IRE Project/
 │   ├── estimation_metrics.py ✓ provisional tracking error, lag, false switches, noise floor
 │   ├── relevance.py   ✓    base relevance r_i, plug-in scores, Top-K (quality transform g: M6)
 │   ├── similarity.py  ✓    S = ΦΦᵀ (+ jitter), PSD checks
-│   ├── dpp.py              greedy MAP (incremental Cholesky) + naive reference
-│   ├── recommenders.py     Top-K / DPP × static / adaptive / oracle
-│   └── metrics.py          estimation, relevance, diversity, responsiveness
+│   ├── dpp.py         ✓    greedy MAP (incremental Cholesky) + naive and brute-force references
+│   ├── recommenders.py ✓   Top-K / DPP × static / adaptive / oracle
+│   ├── metrics.py     ✓    relevance and diversity metrics (D-17)
+│   ├── evaluation.py  ✓    per-seed evaluator, estimator records, phases
+│   ├── stats.py       ✓    Wilcoxon, bootstrap CI, Holm
+│   └── confirmatory.py ✓   the frozen D-30 analysis
 ├── experiments/
 │   ├── configs/*.json
 │   ├── sim_check.py   ✓    M3 simulator check (tuning seeds only)
@@ -233,6 +239,42 @@ unchanged). Batched over users with a loop over `T` (EWMA) or cumulative sums
 - `noise_floor`: `η · TV(z_t, uniform)`, the error of a perfect tracker of the
   observed-category distribution.
 
+### Evaluation framework (Milestone 7, 2026-11-01) [IMPL+TESTED]
+Exact formulas: `DECISIONS.md` D-17 (see also §10).
+
+| Module / function | Role |
+|---|---|
+| `metrics.py` | pure batched functions: `hits`, `n_targets`, `ndcg_at_k`, `recall_at_k`, `expected_utility`, `category_coverage`, `intra_list_diversity`. Repeated clicks in a window count once |
+| `evaluation.build_profiles` | static, adaptive, uniform-start, window(40) from observed categories; true `z` only if passed explicitly, as `"oracle"` |
+| `evaluation.method_lists` | lists for one user, sorted by score |
+| `evaluation.list_metrics` | all D-17 metrics for one user; the only place lists meet `GroundTruth` and held-out clicks |
+| `evaluation.estimator_records` | tracking error, lag, false switches for H1–H3 |
+| `evaluation.evaluate`, `evaluate_seed` | seed-level records keyed `(κ, scenario, method, phase, metric)` |
+| `stats.py` | two-sided Wilcoxon, percentile bootstrap CI, Holm |
+| `confirmatory.py` | the 8 tests, H4b, H6a, verdicts. "Supported" = Holm p < 0.05 with the predicted sign; "practically meaningful" = whole CI beyond the SESOI |
+
+Routine choice: per-step values are averaged per user, then per cell, then seed. NaN steps
+(no new-item target) are skipped within a user.
+
+### DPP and recommenders (Milestone 6, 2026-11-01) [IMPL+TESTED]
+Objective (D-14): `F(Y) = θ Σ_{i∈Y} log s_i + (1−θ) log det S_Y`, with
+`s_i = r_i (ẑ_{t,c_i} + 0.01)`. For `θ < 1`, `F(Y) = (1−θ) log det L_Y` with
+`L = Diag(q) S Diag(q)`, `q_i = s_i^{θ/(2(1−θ))}` (tested). `θ = 1` is Top-K.
+The linear trade-off in Chen et al. was rejected for our score scale; this form is our
+adaptation and must be described as such.
+
+| Function | Role |
+|---|---|
+| `dpp.greedy_map(log_s, S, theta, k)` | Chen et al. Algorithm 1 on `S`. Keeps `c_i` and `d_i²`. Step: pick `j = argmax θ log s_i + (1−θ) log d_i²`, then for every `i`: `e_i = (S_{ji} − ⟨c_j, c_i⟩)/d_j`, append `e_i` to `c_i`, `d_i² ← d_i² − e_i²`. Floors `d_i²` at 1e-12. Selected items are masked, so lists have no duplicates. `O(k²N)` |
+| `dpp.objective` | `F(Y)` computed directly from `slogdet` |
+| `dpp.naive_greedy_map`, `dpp.brute_force_map` | test references |
+| `dpp.dpp_kernel` | explicit `L`, for validation only (powers of `s` can be badly scaled) |
+| `recommenders.log_scores`, `select`, `recommendation_lists`, `popularity_list` | scores and lists; row `t` uses the profile for time `t` only |
+| `recommenders.Method`, `standard_methods(theta)` | the D-16 method set |
+
+Oracle profiles are passed in by experiment code only; `recommenders.py` never touches
+`GroundTruth`. **Report wording:** "greedy approximate MAP inference".
+
 ### Relevance and similarity (Milestone 5, 2026-11-01) [IMPL+TESTED]
 Inputs are observable only: training counts, public categories and embeddings, `ẑ_t`.
 
@@ -272,6 +314,8 @@ noise `η`, interest concentration `κ`, drift speed `W`, and the DPP trade-off.
 
 ## 10. Evaluation metrics and calculation procedures [PLANNED — D-17]
 Exact formulas will be written here at M7 and hand-checked in tests.
+**2026-11-01:** approved formulas are in `DECISIONS.md` D-17, implemented in `adaptdiv/metrics.py`
+and `adaptdiv/evaluation.py`, hand-checked in `tests/test_metrics_evaluation.py`.
 
 ## 11. Commands used to run experiments
 Run from the repository root (`ire-adaptive-dpp-rec/`):
@@ -281,6 +325,8 @@ python experiments/sim_check.py          # M3 simulator check on tuning seeds 0-
 python experiments/estimator_study.py    # M4 estimator tuning + comparison on tuning seeds 0-4 (~12 s)
 python experiments/ewma_init_comparison.py  # D-27 evidence: uniform-start vs bias-corrected EWMA, tuning seeds
 python experiments/relevance_check.py    # M5 Top-K scoring check on tuning seeds 0-4 (~30 s)
+python experiments/dpp_check.py          # M6 greedy quality, speed, theta sweep on tuning seeds 0-4 (~3 min)
+python experiments/select_theta.py       # M7 D-29 theta selection + pipeline rehearsal, tuning seeds (~7 min, 5 processes)
 ```
 `sim_check.py` refuses evaluation seeds (≥ 100). Output goes to
 `results/m3_sim_check/<run_id>/` (`config.json`, `summary.json`,
@@ -299,6 +345,31 @@ Recorded 2026-10-26 (Milestone 0 inspection):
   `origin = https://github.com/Shambo-Roy/ire-adaptive-dpp-rec` (public).
 
 ## 13. Test cases and outcomes
+
+### Milestone 7 (2026-11-01): `python -m pytest -q` → **159 passed in 6.01 s**
+- `test_metrics_evaluation.py` (20): hand-calculated NDCG, recall, EU, coverage, ILD; repeated
+  targets count once; **independent slow recomputation** of all metrics for real lists; DPP lists
+  sorted by score; records complete; `θ = 1` DPP gives identical records to Top-K; window alignment.
+- **Leakage:** import check that estimators, relevance, similarity, DPP and recommenders can't
+  reach the simulator; no oracle profile unless passed; replacing all clicks after `t` leaves lists
+  up to `t` unchanged; oracle row `t` is the interest at step `t+1`.
+- `test_confirmatory.py` (11): Holm and exact Wilcoxon by hand; planted effects found with the right
+  direction; **false-positive rate under 10% over 200 null tables**; wrong direction not supported;
+  a small effect is significant but not practically meaningful; H4b; H6a finds dominators and
+  ignores oracles.
+- A first version of the null test failed: it required no false positive in 5 tables, which is not
+  a valid expectation at a 5% error rate. It was replaced by the rate check. One meaningless
+  assertion in the coverage test was also removed.
+
+### Milestone 6 (2026-11-01): `python -m pytest -q` → **128 passed in 0.99 s**
+`test_dpp_recommenders.py` (44 new, counting parametrised cases): hand example (`θ=0.5`
+avoids the near-duplicate; `θ=1` doesn't); `θ=0` ignores scores; **fast greedy picks exactly
+the same items as naive greedy** (24 cases); greedy never beats brute force and stays close;
+`θ=1` equals Top-K; `F(Y) = (1−θ) log det L_Y`; `L` symmetric positive definite; lists stay
+distinct when `k` exceeds the rank; invalid arguments; zero interest gives finite scores;
+list shape, step selection and **no look-ahead**; DPP covers at least as many categories as
+Top-K for uniform interest; D-16 method set; popularity list. One test written during this
+milestone was removed before counting because it only compared a determinant with itself.
 
 ### Milestone 5 (2026-11-01): `python -m pytest -q` → **84 passed in 0.98 s**
 `test_relevance_similarity.py` (13 new): hand-calculated global and within-category
@@ -327,8 +398,66 @@ Statistical tests use fixed seeds, so they are deterministic. Their tolerances w
 before running, from the expected Monte Carlo error.
 
 ## 14. Experiment results
-*No confirmatory experiments have been run. The recommendation-style check below is a
-Top-K scoring sanity check on tuning seeds.*
+*No confirmatory experiments have been run. The checks below use tuning seeds only and
+are not hypothesis tests.*
+
+### M7 `θ` selection (tuning seeds 0–4, 2026-11-01)
+- **Run:** `results/m7_theta/20261101-152049`. Full scale (100 users, every step, `t = 20…195`), 15 methods, 5 processes,
+  392 s.
+- **D-29 rule** (EU@10 loss vs same-profile Top-K, pooled; negative = gain; coverage is the
+  category-coverage metric):
+
+| `θ` | static loss | adaptive loss | static coverage | adaptive coverage |
+|---|---|---|---|---|
+| 0.9 | −0.2% | 0.0% | 0.364 | 0.332 |
+| 0.8 | −0.3% | 0.1% | 0.378 | 0.345 |
+| 0.7 | −0.3% | 0.5% | 0.394 | 0.360 |
+| 0.6 | 0.2% | 1.3% | 0.414 | 0.380 |
+| **0.5** | 1.0% | 2.8% | 0.440 | 0.406 |
+| 0.3 | 6.9% | 10.3% | 0.523 | 0.490 |
+
+  **Selected `θ = 0.5`**, the smallest with loss ≤ 3% for both profiles. It sits close to the limit.
+- **Pipeline rehearsal** (`rehearsal.json`): the frozen analysis ran end to end on 5 tuning seeds.
+  With 5 seeds the smallest possible Wilcoxon p is 0.0625, so nothing can be significant. **Not a
+  result.** Its purpose was to prove that the code runs.
+
+### M6 DPP check (exploratory, tuning seeds 0–4, 2026-11-01)
+- **Run:** `results/m6_dpp/20261101-150200`. Subsample: first 30 users per cell, every 5th step after step 20;
+  `K = 10`; runtime 167 s. Plot: `tradeoff.png`. Coverage metric as in M5 (provisional).
+  Stable: all sampled steps. Abrupt: 50 steps after the switch.
+- **Greedy vs exact** (200 random 14-item instances, `k = 5`, real embeddings): exact optimum
+  found 95.0% / 99.5% / 100% of the time at `θ` = 0.3 / 0.6 / 0.8; largest objective gap
+  0.069 / 0.007 / 0. Tiny instances only: this does not bound the gap at `N = 500`.
+- **Speed:** 0.12–0.18 ms per list at `N = 500`, `K = 10`.
+- **Sweep** (coverage / categories per list):
+
+| κ, scenario | θ | static | adaptive | oracle-z |
+|---|---|---|---|---|
+| focused, stable | 1.0 | 0.376 / 1.9 | 0.373 / 1.9 | 0.377 / 1.9 |
+| | 0.5 | 0.363 / 2.3 | 0.361 / 2.3 | 0.366 / 2.2 |
+| | 0.3 | 0.335 / 2.9 | 0.332 / 2.9 | 0.340 / 2.7 |
+| focused, abrupt | 1.0 | 0.062 / 2.4 | 0.277 / 2.5 | 0.379 / 1.9 |
+| | 0.5 | 0.094 / 3.2 | 0.266 / 3.2 | 0.369 / 2.2 |
+| | 0.3 | 0.114 / 3.9 | 0.243 / 4.0 | 0.341 / 2.6 |
+| spread, stable | 1.0 | 0.191 / 4.2 | 0.185 / 4.0 | 0.197 / 4.2 |
+| | 0.5 | 0.185 / 5.2 | 0.180 / 5.0 | 0.190 / 5.3 |
+| | 0.3 | 0.171 / 6.2 | 0.168 / 5.9 | 0.176 / 6.2 |
+| spread, abrupt | 1.0 | 0.086 / 4.9 | 0.156 / 4.7 | 0.205 / 4.2 |
+| | 0.5 | 0.099 / 6.1 | 0.154 / 5.9 | 0.198 / 5.3 |
+| | 0.3 | 0.108 / 7.1 | 0.146 / 6.8 | 0.182 / 6.2 |
+
+  Full results, including gradual, recurrent, noisy, ILD and seen share, are in `check.json`.
+  Popularity floor: 0.13–0.14. Seed-to-seed SD of adaptive coverage at `θ = 0.6` after the
+  shift: 0.018 (focused), 0.028 (spread).
+- **Reading (directional only):**
+  - For the static profile after a shift, more diversity **raises** coverage (0.062 → 0.114
+    focused), because a diverse list hedges against stale interests. This is the
+    *substitution* direction of H6(b): the adaptation gain at `θ = 0.5` is 0.172 vs 0.215 at
+    Top-K for focused users, and 0.055 vs 0.070 for spread users.
+  - The adaptive profile loses little down to `θ ≈ 0.5`, while categories rise.
+  - Relevance cost at `θ = 0.5` (stable): 3.2% focused, 2.7% spread; after a shift 4.0% and
+    1.3%. That is the H5 direction, but the stable gap is small.
+  - Adaptive DPP is below the static DPP on stable interests, as H2 would imply.
 
 ### M5 scoring check (exploratory, tuning seeds 0–4; not a hypothesis test)
 - **Run:** `results/m5_relevance/20261101-142207` (Top-K, `K = 10`, runtime about 31 s; 5 seeds × 2 `κ` × 5 scenarios ×
@@ -510,6 +639,15 @@ Top-K scoring sanity check on tuning seeds.*
   (all commits, up to `391744c`, are contained in the main repo and on GitHub; no
   stash) and deleted on the author's instruction.
 
+- **2026-11-01 (M6 preparation):** Steck (2018) could not be read: ACM returns 403 and no
+  open copy was found. Only a survey's description is available. D-19 requires the full
+  text, so the calibration baseline is blocked; the author may be able to supply the PDF.
+- **2026-11-01 (M6 preparation):** a throwaway prototype showed Chen et al.'s linear
+  trade-off is unsuitable for our probability-scale scores (coverage 0.369 → 0.287 at
+  `θ = 0.95`). Log-score form proposed (D-14).
+- **2026-11-01 (M6 preparation):** correction: the literature matrix said Ibrahim et al.
+  have a trade-off parameter; arXiv v1 does not. Recorded in the reading notes.
+
 ## 16. Failed approaches and negative results
 *No implemented approach has failed yet.* Design-stage alternatives that were
 rejected on evidence are recorded in §15 (M2: top-2 swap shift; no-repeat
@@ -554,6 +692,19 @@ Added in Milestone 2:
 14. **Uniform noise model.** Real off-interest clicks may be popularity-driven.
     [Stated limitation.]
 
+Added in Milestone 7:
+23. **Selected `θ` sits near the rule's limit** (2.8% vs 3%). [Report the full `θ` curve.]
+24. **The rehearsal shows tuning-seed effect directions.** Since the freeze followed the
+    rehearsal, state plainly that the plan was fixed by the D-30 approval *before* it ran, and
+    that nothing changed afterwards except recording the selected `θ`.
+
+Added in Milestone 6:
+20. **Adapted objective.** Our log-score form differs from Chen et al.'s linear form, so
+    their published results don't transfer directly. [State this in the report.]
+21. **Greedy quality measured only on tiny instances.** [Report it that way.]
+22. **Coverage is provisional and repeat-heavy** (risk 19): "seen" stays 0.5–0.9 for all
+    profiles, including oracle-z. [Metrics decided at M7; `θ` chosen only after that.]
+
 Added in Milestone 5:
 19. **Lists dominated by already-clicked items.** In the M5 check, 69–87% of adaptive Top-K
     list items had already been clicked. This strengthens risk 15. Every method benefits
@@ -582,9 +733,9 @@ Added in Milestone 3:
     variant or an `s_pop` sensitivity check is needed.]
 
 ## 18. Decisions pending approval
-As of 2026-11-01 (after M5): **D-14, D-15, D-16 (needed for M6)**; D-07 (deadline,
-since M0); D-17 (M7, which also locks the provisional metrics); the scale part of D-18
-(M8). Risk 18 (reuse `α*` or retune for recommendation) is also decided at M6.
+As of 2026-11-01 (after M7): **the scale part of D-18 (proposal written, needed for M8)**;
+D-07 (deadline, since M0). D-19's
+calibration baseline is blocked until Steck (2018) is available.
 
 ## 19. Chronological milestone history
 
@@ -707,8 +858,49 @@ since M0); D-17 (M7, which also locks the provisional metrics); the scale part o
 - `experiments/relevance_check.py` on tuning seeds 0–4 (§14): scores behave sensibly and
   most listed items were already clicked (risk 19).
 - Not committed.
-- **Status:** awaiting review. Milestone 6 needs D-14, D-15, D-16, and reading Chen et
-  al. (2018), Kulesza & Taskar (2012) and Steck (2018) in full.
+- **Update:** committed as `c3e2417` and pushed on the author's instruction.
+- **Status:** complete.
+
+### Milestone 6 preparation (2026-11-01; no project code)
+- Read the relevant sections of Kulesza & Taskar, Chen et al., Wilhelm et al., Ibrahim et
+  al. and Lin et al. (`literature/literature_matrix.md`, reading notes). Steck (2018) was
+  inaccessible.
+- Throwaway prototype on tuning seed 1 (scratchpad, not in the repo): log-score trade-off
+  behaves smoothly, the linear form doesn't; about 0.2–0.4 ms per list.
+- Rough M8 cost from that speed: 4M lists per method, so about 20 minutes per DPP method
+  on one core, less when run in parallel over seeds. To be measured in M6.
+- Proposals written for D-14, D-15, D-16; D-28 added. Not committed.
+- **Status:** complete. D-14, D-15, D-16 and D-28 approved by the author.
+
+### Milestone 6 — DPP and recommendation baselines (2026-11-01)
+- Implemented `adaptdiv/dpp.py` and `adaptdiv/recommenders.py` (§6). 44 new tests; full suite
+  **128 passed**.
+- `experiments/dpp_check.py` on tuning seeds (§14): greedy quality, speed, `θ` sweep. No `θ`
+  selected yet.
+- The calibration re-ranker (D-19) was **not** implemented: Steck's paper is unavailable.
+- The dataviz palette validator could not run (Node.js isn't installed); plot series are also
+  separated by line style and order.
+- Rough M8 cost at 0.15 ms per list: 4M lists is about 10 minutes per DPP method on one core.
+- Not committed.
+- **Status:** complete.
+
+### Milestone 7 preparation (2026-11-01; no project code)
+- Throwaway probe of candidate metrics on tuning seeds (scratchpad, not in the repo). Five-step
+  targets are far less noisy than one next item; sorting DPP lists by score removes a small
+  ordering penalty (0–0.9%); repeats are 33–64% of targets, and the DPP's change on new items
+  (+0.9% to −4.3%) is about the same as on all items, so risk 19 is smaller than feared.
+- Wrote the D-17 proposal with exact formulas, D-29 (`θ` rule) and D-30 (8 confirmatory tests
+  under Holm, plus H4b and H6a checks). Not committed.
+- **Status:** complete. D-17, D-29 and D-30 approved by the author.
+
+### Milestone 7 — Evaluation framework (2026-11-01)
+- Implemented `metrics.py`, `evaluation.py`, `stats.py`, `confirmatory.py`; 31 new tests; full suite
+  **159 passed**.
+- `experiments/select_theta.py` selected `θ = 0.5` on tuning seeds and rehearsed the pipeline (§14).
+- Froze the analysis plan in `hypothesis.md`. No evaluation seed has been run.
+- Not committed.
+- **Status:** awaiting review. Milestone 8 needs the D-18 scale decision. Recommended: commit the
+  freeze before any evaluation run, so git records that the plan came first.
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
@@ -800,6 +992,37 @@ trade-off parameter; the calibration re-ranker (if D-19 is approved) vs Adaptive
   top-5 items take 40% of a category's clicks) and repeats are allowed, so focused
   users re-click popular items. It matters for next-item metrics, which could reward
   popularity. We will report a popularity baseline and revisit it at M5/M7.
+
+### Milestone 7
+- **How do you stop results influencing the analysis?** Metrics, tests, thresholds, `α` and `θ` were
+  fixed and written into `hypothesis.md`, using tuning seeds only, before any evaluation seed ran.
+- **Why five held-out clicks?** One click is very noisy. Five reduced the paired noise from up to
+  17% to about 2%.
+- **What does "supported" mean here?** Holm-adjusted p < 0.05 with the predicted sign. Practical
+  importance is a separate check: the whole 95% CI must lie beyond the SESOI.
+- **What does Holm do?** Testing eight hypotheses raises the chance of a false positive. Holm compares
+  the smallest p with `α/8`, the next with `α/7`, and so on, controlling the family-wise error.
+- **Why was `θ = 0.5` chosen?** It is the most diverse setting losing at most 3% expected utility for
+  both profiles. Maximising relevance alone would just pick Top-K.
+- **Does sorting a DPP list change the set?** No, only the order. It gives both selectors the same
+  ranking rule.
+
+### Milestone 6
+- **Is your objective a real DPP?** Yes, for `θ < 1`: with `q_i = s_i^{θ/(2(1−θ))}`,
+  `F(Y) = (1−θ) log det L_Y`, and `L` is PSD because `S` is PSD and `q` is positive. A test
+  checks this identity.
+- **Why not Chen's objective as published?** It adds raw scores to a log-determinant. Our
+  scores are small probabilities, so lists collapsed into ignoring relevance. Logs are
+  scale-free, and `θ = 1` is exactly Top-K.
+- **Walk through one greedy step.** `d_i²` is how much adding item `i` multiplies `det S_Y`.
+  Pick the best `θ log s_i + (1−θ) log d_i²`, then update every `d_i²` by removing the part
+  of `i` explained by the newly picked item.
+- **Is greedy optimal?** No. MAP is NP-hard, and greedy's known guarantee is weak. On tiny
+  instances it matched the exact optimum 95–100% of the time, but that doesn't bound it at
+  `N = 500`.
+- **Why does diversity help the static profile after a shift?** A stale profile puts a Top-K
+  list entirely in the old categories. A diverse list spreads out, so some items land in
+  the new interests. That is hedging, and it may partly substitute for adaptation (H6b).
 
 ### Milestone 5
 - **Why within-category popularity?** Global popularity also records how often each

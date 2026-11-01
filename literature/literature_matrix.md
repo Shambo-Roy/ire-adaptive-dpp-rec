@@ -124,6 +124,19 @@ without isolating the components (A8).
   trade-off suggests that DPP's relevance cost depends on it.
 - Use drift-type vocabulary from D3 (sudden, gradual, recurring) for the scenarios.
 
+## Full-text reading notes (2026-11-01, before Milestone 6)
+
+Level F is **partial**: only the sections listed were read.
+
+| # | Read | Key points (our paraphrase) |
+|---|---|---|
+| A1 Kulesza & Taskar | §§1, 2 (incl. 2.4.5), 3.1, 3.4–3.5, 4.1–4.2, 5–5.2.3 | `P(Y) = det(L_Y)/det(L+I)`, `L` PSD. `L_ij = q_i φ_iᵀφ_j q_j` with `q_i ∈ R+`, `‖φ_i‖ = 1`, and `φ_iᵀφ_j ∈ [−1,1]` is a *signed* similarity (so negative `S_ij` is allowed). Log-linear quality `q_i = exp(½ θᵀf_i)`. MAP is NP-hard, and hard to approximate within `8/9+ε`, even under cardinality constraints (Thm 2.9). Greedy for size-k sets has only a ratio of `O(1/k!)` (Çivril & Magdon-Ismail 2009). k-DPP sampling costs `O(Nk³)` after an eigendecomposition |
+| A5 Chen et al. | §§1–5, 6.1, 6.2 and conclusion; supplement not read in detail | `L = Diag(r) S Diag(r)`. Trade-off: `log P(R) ∝ θ Σ r_i + (1−θ) log det S_R`, equivalent to `q_i = exp(α r_i)`, `α = θ/(2(1−θ))`. Algorithm 1 maintains `c_i` and `d_i²`, with `det(L_{Y∪i}) = det(L_Y) d_i²`; `O(N²M)` to return `N` of `M` items, against `O(M⁴)` for earlier exact implementations. "Fast and exact" means an exact implementation of *greedy*, not exact MAP. Their experiments map `S_ij = (1+⟨f_i,f_j⟩)/2` into `[0,1]`. Offline: Netflix Prize, Million Song; online A/B test improved titles and minutes watched |
+| A6 Wilhelm et al. | §§4.2–4.5 (extracted text) | `L_ii = q_i²`, `L_ij = α q_i q_j exp(−D_ij/2σ²)`. With `α > 1` the kernel may not be PSD, so they project by zeroing negative eigenvalues. Selection is a **greedy** approximate maximiser over windows of about a dozen videos, not sampling. Online results not recorded |
+| A9 Ibrahim et al. | Full (arXiv v1, HTML) | `L = Diag(q) G Diag(q)`, with `q_i` a two-tower cosine. Exact k-DPP **sampling**, `k = 60` from 1,000 candidates. **Correction to the row above: v1 has no tunable trade-off weight** (listed as future work). Online: CTR fell 37% with personalised quality and 46% without; volume rose 12× and 15.8×. A strong warning that diversification can cost relevance. Their Eq. 1 appears to have a coefficient error (`Σ log q_i` should be `2 Σ log q_i`), so we do not reuse it |
+| B7 Steck | **Primary text not accessible (ACM 403).** Secondary only (Corrêa da Silva & Jannach survey, arXiv 2507.02643, read in part) | Target `p(g|u)`, list `q(g|u)`, smoothing `q̃ = (1−α) q + α p` with `α` commonly 0.01, objective `(1−λ) REL − λ KL(p‖q̃)`, greedy. The `(1−1/e)` claim and submodularity remain **unverified**. Level stays S |
+| B8 Lin et al. | Full (arXiv v1, HTML) | Trains a separate BPR model on each cumulative recent window, then measures KL miscalibration and NDCG. KuaiRec and GoodReads. Best window differs by domain. It is *not* a re-ranker and does not study diversity trade-offs or session-based models; both are stated limitations |
+
 ## Reading list before Milestone 6 (to reach level F)
 A1 (§2–4: L-ensembles, quality/diversity decomposition), A5 (algorithm and trade-off
 kernel), B7 (calibration objective and greedy algorithm), A6, A9, B8.

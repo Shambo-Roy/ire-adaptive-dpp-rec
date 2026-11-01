@@ -8,6 +8,17 @@ evaluation-seed run** (Milestone 8). Any later change must be added below as a d
 amendment with its reason, and marked as made *before* or *after* seeing evaluation
 results. Earlier text is never edited away.
 
+## FROZEN 2026-11-01 (Milestone 7)
+The items below are fixed. No evaluation seed (100–119) had been run when this was written.
+- Hypotheses H1–H6 and the amendments below.
+- Metrics and formulas: `DECISIONS.md` D-17; code in `adaptdiv/metrics.py`, `adaptdiv/evaluation.py`.
+- Tests, Holm family and verdict rules: D-21, D-30; code in `adaptdiv/stats.py`, `adaptdiv/confirmatory.py`.
+- SESOI: 3% relative (NDCG, EU), 2 interactions (lag), 0.02 (tracking error).
+- `α = 0.05` (bias-corrected EWMA), `θ = 0.5` (selected in `results/m7_theta/20261101-152049`), `K = 10`, `h = 5`,
+  burn-in 20, post-shift window 50, crossover run 5, `ε = 0.01`.
+Any change after this point goes under Amendments, dated, with its reason, and marked as made
+before or after seeing evaluation results.
+
 ## Research questions
 - **RQ (central):** Can adaptive interest estimation combined with interest-weighted
   DPP selection improve the balance of relevance, diversity and responsiveness to
@@ -63,3 +74,9 @@ results. Earlier text is never edited away.
   (`m_t = (1−α) m_{t−1} + α x_t`, `ẑ_t = m_t / (1−(1−α)^t)`) with `α = 0.05`, tuned on
   tuning seeds. Reason: the uniform start confounded H2 (forgetting vs prior). The
   hypotheses themselves are unchanged. The uniform-start EWMA stays as an ablation.
+- **2026-11-01 (before any evaluation-seed run; made before the freeze):** following D-30, each
+  hypothesis is fixed as the test listed in `DECISIONS.md` D-30, with the metrics of D-17.
+  "NDCG@K" in the hypotheses means NDCG@10 against the next 5 clicks, with lists sorted by
+  score. In H6(a), "compared methods" means Popularity, Static Top-K, Adaptive Top-K and Static
+  DPP; oracle methods are excluded because they are diagnostic ceilings (D-16). H4's stable arm
+  is the equivalence check H4b. Reason: to make every test exact before the freeze.
