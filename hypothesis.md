@@ -58,4 +58,8 @@ results. Earlier text is never edited away.
 | H4, H5, H6 | M8 2×2 factorial runs | — not run |
 
 ## Amendments
-*None.*
+- **2026-11-01 (before any evaluation-seed run; made before the freeze):** following D-27,
+  "EWMA" in H1–H3 and "adaptive profile" mean **bias-corrected EWMA**
+  (`m_t = (1−α) m_{t−1} + α x_t`, `ẑ_t = m_t / (1−(1−α)^t)`) with `α = 0.05`, tuned on
+  tuning seeds. Reason: the uniform start confounded H2 (forgetting vs prior). The
+  hypotheses themselves are unchanged. The uniform-start EWMA stays as an ablation.

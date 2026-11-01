@@ -8,7 +8,7 @@ simulation** where the true interest vector `z_t` is known. The recommender sees
 the interactions.
 
 ## Status
-**Milestone 4 (interest estimators): complete, awaiting review (and decision D-27).** The simulator and estimators are implemented and tested. Relevance, DPP and the main experiments are not implemented yet.
+**Milestone 5 (base relevance and similarity): complete, awaiting review.** The simulator, estimators, relevance scores and similarity kernel are implemented and tested. The proposed estimator is bias-corrected EWMA with alpha = 0.05 (D-27). The DPP and main experiments are not implemented yet.
 
 | Document | Purpose |
 |---|---|
@@ -28,13 +28,15 @@ Run from this folder:
 python -m pytest -q                  # run all tests
 python experiments/sim_check.py      # simulator check on tuning seeds 0-4 -> results/m3_sim_check/<run_id>/
 python experiments/estimator_study.py # estimator tuning/comparison on tuning seeds -> results/m4_estimators/<run_id>/
+python experiments/relevance_check.py # Top-K scoring check on tuning seeds -> results/m5_relevance/<run_id>/
 ```
 
 ## Code layout
 ```
 adaptdiv/      config, seeding, catalogue, scenarios, simulator   (Milestone 3)
                estimators, estimation_metrics                     (Milestone 4)
-experiments/   sim_check.py, estimator_study.py
+               relevance, similarity                              (Milestone 5)
+experiments/   sim_check.py, estimator_study.py, ewma_init_comparison.py, relevance_check.py
 tests/         pytest suite
 results/       per-run outputs (config, summary, environment, plots)
 ```

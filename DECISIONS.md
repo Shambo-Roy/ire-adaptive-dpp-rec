@@ -172,6 +172,7 @@ Tune `α` and `W` on tuning seeds only. A change-point-based adaptive `α` is an
 optional extension.
 
 ### D-12 — Item representation and similarity `S` (approve at M5)
+**Status:** APPROVED 2026-11-01 (M5 proposal below)
 **Recommendation:** each item has one category `c_i` and an embedding
 `φ_i = normalise(μ_{c_i} + σ ε_i)` in `R^d`. Set `S = Φ Φᵀ`, i.e. cosine similarity.
 This is a Gram matrix, so it is PSD by construction.
@@ -179,8 +180,12 @@ This is a Gram matrix, so it is PSD by construction.
 rank `C`, so a DPP could select at most one item per category, and `K > C` would be
 impossible. Likewise `rank(ΦΦᵀ) ≤ d`, so we need **`d ≥ K`** (proposal: `d = 32`,
 `K = 10`) and a small jitter `εI` for numerical stability.
+**M5 proposal (2026-11-01), PENDING approval:** unchanged: `S = ΦΦᵀ + εI` with
+`ε = 1e-6` on the public embeddings, `d = 32`, `K = 10`. Tests: symmetry, unit diagonal
+(before jitter), positive semidefinite, rank ≤ `d`.
 
 ### D-13 — Base relevance `r_i` and candidate set (approve at M5)
+**Status:** APPROVED 2026-11-01 (M5 proposal below: all items as candidates, within-category popularity; global popularity only for the Popularity Top-K floor)
 | Option | Pros | Cons |
 |---|---|---|
 | (a) Popularity estimated from independent "training" simulated users | Observable, non-personalised, keeps the 2×2 design clean | Weak on its own |
@@ -189,6 +194,27 @@ impossible. Likewise `rank(ΦΦᵀ) ≤ d`, so we need **`d ≥ K`** (proposal: 
 **Recommendation: (a)**, with `r_i > 0` (smoothed counts). Candidate set: all items
 (N ≈ 500), excluding items already consumed in the current sequence (to be confirmed
 at M5).
+**Superseded note (2026-11-01):** the exclusion above conflicts with approved D-24, which
+says recommenders do **not** exclude consumed items (excluding them while repeats are
+generated would make those targets unreachable). D-24 governs unless changed at M5.
+**M5 proposal (2026-11-01), PENDING approval:**
+- **Candidates:** all `N` items, for every method. No exclusion (D-24).
+- **Base relevance:** popularity from the training population, **within category**:
+  `r_i = (count_i + 1) / (Σ_{j∈c_i} count_j + n_c)`. Then `r_i · ẑ_{t,c_i}` is a plug-in
+  estimate of the next-item probability, and only `ẑ_t` carries category preference.
+  The D-26 global `r_i` is kept only for the **Popularity Top-K** floor, which has no
+  profile.
+- **Why not global `r_i` everywhere:** a check on tuning seeds (2026-11-01) found the
+  category totals of global `r_i` range about 0.09–0.11 (max/min ≈ 1.2) although categories
+  are symmetric by design. That is training-sample noise, and it would act as a fake
+  category preference. Within-category estimates correlate 0.996 with true `π_i` (mean
+  within-category TV 0.037).
+- **Consequence to accept:** `r_i` is close to true popularity, so the ranking model is
+  close to the simulator except for the hidden taste `λ` (risk 1 in the log).
+- **Repeat-rate risk (risk 15):** report the Popularity Top-K floor, and fix any no-repeat
+  metric variant at M7.
+Alternatives: global `r_i` everywhere (simpler, keeps the noise above); content similarity
+or item-kNN (rejected in D-13 because they blur the static vs adaptive factor).
 
 ### D-14 — Quality transform and DPP kernel (approve at M6)
 `L = Diag(q) S Diag(q)`, i.e. `L_ij = q_i q_j S_ij`. `L` is PSD whenever `S` is PSD
@@ -356,7 +382,7 @@ model remains D-13, approved at M5.
 ## Group E — Raised in Milestone 4 (estimators)
 
 ### D-27 — EWMA initialisation: uniform start vs bias-corrected start
-**Status:** PENDING (raised 2026-10-28, M4)
+**Status:** APPROVED 2026-11-01: option (b), bias-corrected EWMA with `α* = 0.05` is the proposed adaptive estimator; the uniform-start EWMA (`α = 0.07`) stays as an ablation. This refines D-11. Raised 2026-10-28, M4.
 
 **What we found** (M4 study, tuning seeds; `IMPLEMENTATION_LOG.md` §14). Approved D-11 starts
 EWMA from `ẑ_0 = uniform`. That start fades as `(1−α)^t`: about 23% of it remains
@@ -382,6 +408,20 @@ differ *only* in how they weight past observations, which is exactly the adaptat
 question. Zero estimates for unseen categories are then handled where they matter,
 in the quality transform (`ε` in D-14).
 
+**Evidence added 2026-11-01** (`results/m4_ewma_init/20261101-140141/`, tuning seeds 0–4;
+`ewma_bias_corrected` is implemented as an extra option and is not the default):
+- **At the same α** the versions give identical lag and post-shift error (the start has
+  faded by the first switch). Bias correction lowers focused users' error over all steps
+  (stable 0.125 vs 0.149) and raises spread users' (0.224 vs 0.207).
+- **Each tuned on the pooled mix**, the selected α changes: 0.07 (uniform start, pooled
+  TV 0.2216) vs **0.05** (bias-corrected, 0.2138, the lowest of all settings tried,
+  including window(40) at 0.2164).
+- **That lower α is a real trade-off:** bias-corrected α = 0.05 catches up more slowly
+  (13.2 vs 9.3 steps, focused abrupt) but is more stable (0.103 vs 0.121 stable error;
+  0.035 vs 0.050 noisy false switches).
+Why the old α was higher: part of the tuning was compensating for the slow-fading start.
+The recommendation stays (b), with `α* = 0.05`.
+
 ---
 
 ## Revision history
@@ -394,6 +434,10 @@ in the quality transform (`ε` in D-14).
 - 2026-10-26 — Milestone 2: D-08, D-09 and D-10 updated and proposed for approval;
   added D-22 … D-26. Specification in `SIMULATION_DESIGN.md`.
 - 2026-10-28 — D-11 approved; implemented in M4. Added D-27 (EWMA initialisation).
+- 2026-11-01 — D-27: evidence added, still pending. D-13: noted the conflict with D-24.
+- 2026-11-01 — D-27 approved by the author (option b, `α* = 0.05`).
+- 2026-11-01 — M5 proposals added to D-12 and D-13 (pending).
+- 2026-11-01 — D-12 and D-13 approved by the author.
 - 2026-10-26 — Author approved D-08, D-09, D-10, the seed protocol (D-18, part),
   D-19 (option b), D-20, D-21 and D-22 … D-26, all as proposed. Still open: D-07
   (deadline) and D-11 … D-17 plus the scale part of D-18 (confirmed at their own

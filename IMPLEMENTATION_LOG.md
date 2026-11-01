@@ -60,7 +60,14 @@ Approved 2026-10-26 (after Milestones 1–2):
 - D-20: hypotheses H1–H6 (`hypothesis.md`). D-21: statistical protocol and SESOI.
 - D-22 … D-26: independent centroids; `κ ∈ {0.1, 1.0}` with half-swap shift;
   repeats allowed; pooled-scenario tuning; training population for `r_i`.
-Still pending: D-07 (deadline); D-11 … D-17 and the scale part of D-18 (confirmed
+Approved 2026-10-28 / 2026-11-01:
+- D-11: cumulative mean, EWMA, sliding window.
+- D-27: the proposed adaptive estimator is **bias-corrected EWMA, `α* = 0.05`**
+  (`PROPOSED_ESTIMATOR`). The uniform-start EWMA (`α = 0.07`) is an ablation.
+- D-12, D-13 (2026-11-01): `S = ΦΦᵀ + εI`; all items are candidates with no exclusion;
+  within-category popularity as base relevance; global popularity only for the
+  Popularity Top-K floor.
+Still pending: D-07 (deadline); D-14 … D-17 and the scale part of D-18 (confirmed
 at their own milestones). Scope from the master prompt:
 controlled simulation where the true `z_t` is known; open-loop evaluation
 on fixed sequences; real-data validation is optional and needs approval.
@@ -103,9 +110,10 @@ IRE Project/
 │   ├── catalogue.py   ✓    item categories, embeddings, popularity
 │   ├── scenarios.py   ✓    z_t trajectory generators (stable/gradual/abrupt/noisy/recurrent)
 │   ├── simulator.py   ✓    interaction generation; GroundTruth vs ObservedSequence
-│   ├── estimators.py       cumulative mean, EWMA, sliding window
-│   ├── relevance.py        base relevance r_i, quality transform g
-│   ├── similarity.py       S = ΦΦᵀ (+ jitter), PSD checks
+│   ├── estimators.py  ✓    cumulative mean, EWMA (bias-corrected + uniform start), sliding window
+│   ├── estimation_metrics.py ✓ provisional tracking error, lag, false switches, noise floor
+│   ├── relevance.py   ✓    base relevance r_i, plug-in scores, Top-K (quality transform g: M6)
+│   ├── similarity.py  ✓    S = ΦΦᵀ (+ jitter), PSD checks
 │   ├── dpp.py              greedy MAP (incremental Cholesky) + naive reference
 │   ├── recommenders.py     Top-K / DPP × static / adaptive / oracle
 │   └── metrics.py          estimation, relevance, diversity, responsiveness
@@ -208,6 +216,7 @@ unchanged). Batched over users with a loop over `T` (EWMA) or cumulative sums
 | `cumulative_mean` | `ẑ_0` uniform; `ẑ_t = (1/t) Σ_{s≤t} x_s` |
 | `ewma(alpha)` | `ẑ_0` uniform; `ẑ_t = (1−α) ẑ_{t−1} + α x_t` (as approved in D-11; see D-27) |
 | `sliding_window(W)` | `ẑ_0` uniform; `ẑ_t = (1/min(t,W)) Σ_{s=max(1,t−W+1)}^{t} x_s` |
+| `ewma_bias_corrected(alpha)` | Extra option added 2026-11-01 for D-27, not the default: `m_t = (1−α) m_{t−1} + α x_t`, `m_0 = 0`; `ẑ_t = m_t / (1−(1−α)^t)`; `ẑ_0` uniform |
 | `ewma_mean_age`, `matched_window` | mean age `(1−α)/α`; equal-mean-age window `W = 2/α − 1` |
 | `EstimatorSpec(kind, param)` | named, callable configuration used by experiments |
 
@@ -223,6 +232,22 @@ unchanged). Batched over users with a loop over `T` (EWMA) or cumulative sums
   `argmax ẑ_t ≠ argmax ẑ_{t−1}` while `argmax z_t = argmax z_{t−1}`.
 - `noise_floor`: `η · TV(z_t, uniform)`, the error of a perfect tracker of the
   observed-category distribution.
+
+### Relevance and similarity (Milestone 5, 2026-11-01) [IMPL+TESTED]
+Inputs are observable only: training counts, public categories and embeddings, `ẑ_t`.
+
+| Function | Definition |
+|---|---|
+| `relevance.global_popularity(counts)` | `(count_i+1)/(Σ_j count_j + N)`. Popularity Top-K floor only |
+| `relevance.within_category_popularity(counts, categories, C)` | `r_i = (count_i+1)/(Σ_{j∈c_i} count_j + n_c)`; sums to 1 in each category |
+| `relevance.plugin_scores(zhat, r, categories)` | `s_i(t) = r_i · ẑ_{t,c_i}`, batched. Sums to 1 over items, so it is an estimated next-item distribution |
+| `relevance.top_k(scores, k)` | best `k` items, deterministic tie-break (lowest index) |
+| `similarity.similarity_matrix(embeddings, jitter=1e-6)` | `S = ΦΦᵀ + εI` |
+| `similarity.min_eigenvalue(S)` | verifies positive definiteness |
+
+**Candidates:** all `N` items for every method, so there is no separate candidate
+generator. **Timing rule:** the list for step `t+1` uses `ẑ_t` only.
+The quality transform `g` and DPP kernel are M6 (D-14).
 
 ## 7. Data sources, preprocessing, data generation [IMPL+TESTED 2026-10-26 (M3)]
 Fully synthetic catalogue and interactions (D-03, approved 2026-10-26).
@@ -254,6 +279,8 @@ Run from the repository root (`ire-adaptive-dpp-rec/`):
 python -m pytest -q                      # full test suite
 python experiments/sim_check.py          # M3 simulator check on tuning seeds 0-4
 python experiments/estimator_study.py    # M4 estimator tuning + comparison on tuning seeds 0-4 (~12 s)
+python experiments/ewma_init_comparison.py  # D-27 evidence: uniform-start vs bias-corrected EWMA, tuning seeds
+python experiments/relevance_check.py    # M5 Top-K scoring check on tuning seeds 0-4 (~30 s)
 ```
 `sim_check.py` refuses evaluation seeds (≥ 100). Output goes to
 `results/m3_sim_check/<run_id>/` (`config.json`, `summary.json`,
@@ -273,6 +300,22 @@ Recorded 2026-10-26 (Milestone 0 inspection):
 
 ## 13. Test cases and outcomes
 
+### Milestone 5 (2026-11-01): `python -m pytest -q` → **84 passed in 0.98 s**
+`test_relevance_similarity.py` (13 new): hand-calculated global and within-category
+popularity; positivity, sums to 1 per category, empty-category behaviour; hand-calculated
+plug-in scores; scores form a distribution and batching agrees; a zero estimate gives a
+zero score (documents what the DPP quality transform must handle); `top_k` order, ties and
+batching; `S` symmetric with diagonal `1+ε`; positive definite with jitter; `ΦΦᵀ` PSD with
+rank exactly 32; embeddings not modified; a duplicated item gives determinant 0.
+
+### Milestone 4 (2026-10-28, extended 2026-11-01): `python -m pytest -q` → **71 passed in 0.78 s**
+65 tests passed at the end of M4 on 2026-10-28; 6 were added on 2026-11-01 for the
+bias-corrected EWMA.
+| File | What is checked |
+|---|---|
+| `test_estimators.py` | hand-calculated EWMA, bias-corrected EWMA, cumulative-mean and window values; unrolled and normalised-average formulas; limits (`α=1`, `W=1`, `W≥T`, `α→0` gives the cumulative mean); the two EWMA versions agree once the start has faded; simplex and uniform `ẑ_0`; **no look-ahead**; batch = single; long-run convergence; one noisy click moves EWMA by exactly `α`; matched memory; invalid arguments |
+| `test_estimation_metrics.py` | TV; `ẑ_t`/`z_t` alignment; noise floor; crossover lag (hand example, censoring, batching); false-switch rate (hand example, burn-in, a true switch is not false) |
+
 ### Milestone 3 (2026-10-26): `python -m pytest -q` → **39 passed in 0.66 s** (pytest 9.1.1)
 | File | What is checked |
 |---|---|
@@ -284,7 +327,59 @@ Statistical tests use fixed seeds, so they are deterministic. Their tolerances w
 before running, from the expected Monte Carlo error.
 
 ## 14. Experiment results
-*No recommendation experiments have been run.*
+*No confirmatory experiments have been run. The recommendation-style check below is a
+Top-K scoring sanity check on tuning seeds.*
+
+### M5 scoring check (exploratory, tuning seeds 0–4; not a hypothesis test)
+- **Run:** `results/m5_relevance/20261101-142207` (Top-K, `K = 10`, runtime about 31 s; 5 seeds × 2 `κ` × 5 scenarios ×
+  100 users × 200 steps).
+- **Measure:** coverage `Σ_{i∈R_t} P_{t+1}(i)`, the true next-item probability covered by
+  the list. Provisional: formal metrics are fixed at M7.
+- **Profiles:** popularity (no profile, global `r`), static (cumulative mean), adaptive
+  (bias-corrected EWMA, `α = 0.05`), oracle-z (true `z_{t+1}`, a diagnostic ceiling only).
+- Stable and noisy: mean over steps 21–200. Drift scenarios: 50 steps after each switch.
+
+| κ | scenario | popularity | static | adaptive | oracle-z | listed items already clicked (adaptive) |
+|---|---|---|---|---|---|---|
+| 0.1 | stable | 0.141 | 0.372 | 0.369 | 0.374 | 0.87 |
+| 0.1 | abrupt | 0.133 | 0.061 | 0.276 | 0.370 | 0.78 |
+| 0.1 | gradual | 0.134 | 0.098 | 0.289 | 0.339 | 0.78 |
+| 0.1 | recurrent | 0.137 | 0.192 | 0.281 | 0.372 | 0.79 |
+| 0.1 | noisy | 0.140 | 0.291 | 0.287 | 0.294 | 0.83 |
+| 1.0 | stable | 0.139 | 0.195 | 0.188 | 0.201 | 0.76 |
+| 1.0 | abrupt | 0.140 | 0.082 | 0.155 | 0.204 | 0.69 |
+| 1.0 | gradual | 0.139 | 0.096 | 0.159 | 0.191 | 0.69 |
+| 1.0 | recurrent | 0.139 | 0.129 | 0.155 | 0.202 | 0.69 |
+| 1.0 | noisy | 0.139 | 0.169 | 0.161 | 0.175 | 0.73 |
+
+- **Kernel:** `S` for 500 items builds in about 0.01 s; minimum eigenvalue about 1e-6
+  (the jitter), as expected.
+- **Reading:** the ordering is sensible: oracle-z is highest; when stable the static
+  profile is slightly better than adaptive; after a shift adaptive is well above static,
+  and static falls below even popularity. Directional only, in the direction of H4.
+- **Repeat warning:** 69–87% of listed items were already clicked by that user. See risk 15.
+
+### D-27 comparison: EWMA uniform start vs bias-corrected (exploratory, tuning seeds 0–4, 2026-11-01)
+- **Run:** `results/m4_ewma_init/20261101-140141/`, same sequences and objective as the
+  M4 study below.
+- **Pooled mean TV by α** (0.02 / 0.03 / 0.05 / 0.07 / 0.1 / 0.15 / 0.2 / 0.3 / 0.5):
+  uniform start 0.2818 / 0.2474 / 0.2230 / **0.2216** / 0.2330 / 0.2612 / 0.2906 / 0.3452 / 0.4384;
+  bias-corrected 0.2339 / 0.2210 / **0.2138** / 0.2187 / 0.2339 / 0.2640 / 0.2937 / 0.3480 / 0.4402.
+- Selected α: 0.07 (uniform start), 0.05 (bias-corrected).
+
+| κ | scenario | EWMA(0.07), uniform | bias-corrected (0.07) | bias-corrected (0.05) |
+|---|---|---|---|---|
+| 0.1 | stable: error, steps 21–200 / false-switch | 0.121 / 0.044 | 0.115 / 0.044 | 0.103 / 0.032 |
+| 0.1 | abrupt: post / lag | 0.317 / 9.3 | 0.317 / 9.3 | 0.384 / 13.2 |
+| 0.1 | noisy: error / false-switch | 0.257 / 0.050 | 0.251 / 0.050 | 0.242 / 0.035 |
+| 1.0 | stable: error / false-switch | 0.202 / 0.138 | 0.205 / 0.138 | 0.177 / 0.102 |
+| 1.0 | abrupt: post / lag | 0.283 / 9.9 | 0.283 / 9.9 | 0.295 / 14.0 |
+| 1.0 | noisy: error / false-switch | 0.234 / 0.161 | 0.236 / 0.161 | 0.211 / 0.119 |
+
+- **Reading:** at the same α, lag and post-shift error are identical, because the start
+  has faded by the first switch. The difference is early error, and the tuned α: the
+  uniform start pushed tuning towards a larger α, so correcting it gives a slower but
+  steadier estimator.
 
 ### M4 estimator study (exploratory, tuning seeds 0–4; not a hypothesis test) [IMPL+TESTED]
 - **Run:** `results/m4_estimators/20261028-121944` (default `SimulationConfig`; 2 `κ` × 5 scenarios × 100 users ×
@@ -459,6 +554,13 @@ Added in Milestone 2:
 14. **Uniform noise model.** Real off-interest clicks may be popularity-driven.
     [Stated limitation.]
 
+Added in Milestone 5:
+19. **Lists dominated by already-clicked items.** In the M5 check, 69–87% of adaptive Top-K
+    list items had already been clicked. This strengthens risk 15. Every method benefits
+    from repeats, but a DPP's diversity may look costly partly because it moves away from
+    these repeated popular items. [Decide at M7 whether to add a "new items only"
+    target variant; report the seen fraction for all methods.]
+
 Added in Milestone 4:
 16. **EWMA initialisation confound (D-27).** With the uniform start, the stable-scenario
     gap between EWMA and the cumulative mean mixes two causes: forgetting and the
@@ -480,9 +582,9 @@ Added in Milestone 3:
     variant or an `s_pop` sensitivity check is needed.]
 
 ## 18. Decisions pending approval
-As of 2026-10-28 (after M4): open items are **D-27 (EWMA initialisation, raised in
-M4)**; D-07 (deadline, since M0); D-12, D-13 (M5); D-14 … D-16 (M6); D-17 (M7, which
-also locks the provisional estimation metrics); the scale part of D-18 (M8).
+As of 2026-11-01 (after M5): **D-14, D-15, D-16 (needed for M6)**; D-07 (deadline,
+since M0); D-17 (M7, which also locks the provisional metrics); the scale part of D-18
+(M8). Risk 18 (reuse `α*` or retune for recommendation) is also decided at M6.
 
 ## 19. Chronological milestone history
 
@@ -583,7 +685,30 @@ also locks the provisional estimation metrics); the scale part of D-18 (M8).
 - Moved the assistant's project memory to the new folder's memory path (no repo
   change).
 - No git commit.
-- **Status:** awaiting review and a decision on D-27.
+- **Update:** the M4 changes were committed outside this session as `c4b9cfc`
+  ("Milestone-4", author `Salvotore-Originals`) and pushed.
+- **2026-11-01:** added `ewma_bias_corrected` as an extra option (default unchanged), 6
+  tests (71 total), and `experiments/ewma_init_comparison.py` with its run (§14) as
+  evidence for D-27. Noted that D-13's preliminary "exclude consumed items" conflicts with
+  approved D-24. Not committed.
+- **2026-11-01:** the author approved D-27 option (b). Added `PROPOSED_ESTIMATOR`,
+  `STATIC_ESTIMATOR` and `UNIFORM_START_ABLATION` to `estimators.py`, and an amendment to
+  `hypothesis.md` (before any evaluation run). The window matched to `α = 0.05` is
+  `W = 39`, almost the same as the tuned `W* = 40`.
+- **2026-11-01, design evidence for M5** (throwaway script, tuning seeds 0–4): category
+  totals of global `r_i` range about 0.09–0.11 (max/min ≈ 1.2); within-category estimates
+  correlate 0.996 with true `π_i`. See the D-13 proposal.
+- **Status:** complete, not committed.
+
+### Milestone 5 — Candidate generation and base relevance (2026-11-01)
+- D-12 and D-13 approved by the author. Implemented `adaptdiv/relevance.py` and
+  `adaptdiv/similarity.py`.
+- 13 new tests; full suite **84 passed**.
+- `experiments/relevance_check.py` on tuning seeds 0–4 (§14): scores behave sensibly and
+  most listed items were already clicked (risk 19).
+- Not committed.
+- **Status:** awaiting review. Milestone 6 needs D-14, D-15, D-16, and reading Chen et
+  al. (2018), Kulesza & Taskar (2012) and Steck (2018) in full.
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
@@ -675,6 +800,20 @@ trade-off parameter; the calibration re-ranker (if D-19 is approved) vs Adaptive
   top-5 items take 40% of a category's clicks) and repeats are allowed, so focused
   users re-click popular items. It matters for next-item metrics, which could reward
   popularity. We will report a popularity baseline and revisit it at M5/M7.
+
+### Milestone 5
+- **Why within-category popularity?** Global popularity also records how often each
+  category happened to be clicked in training, which is noise here (category totals
+  0.09–0.11 for identical categories). Within-category popularity leaves category
+  preference entirely to `ẑ_t`.
+- **What does the plug-in score mean?** `r_i ≈ P(i | c_i)` and `ẑ_{t,c} ≈ P(c)`, so
+  `r_i · ẑ_{t,c_i}` estimates the next-item probability, and it sums to 1 over items.
+- **Why is `S` guaranteed PSD?** `vᵀΦΦᵀv = ‖Φᵀv‖² ≥ 0` for every `v`. The jitter adds
+  `ε` to every eigenvalue.
+- **Does the jitter solve the rank limit?** No. `ΦΦᵀ` has rank at most `d`, and beyond
+  `d` items only the tiny `ε` remains. That is why we need `d ≥ K`.
+- **Why are no items excluded?** Repeat clicks exist in the simulator (D-24), so excluding
+  seen items would make those targets impossible to hit.
 
 ### Milestone 4
 - **Why does EWMA stay on the simplex without renormalising?** If `ẑ_{t−1}` is a

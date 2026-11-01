@@ -67,6 +67,25 @@ def ewma(cats: np.ndarray, n_categories: int, alpha: float, z0: np.ndarray | Non
     return _finish(out, single)
 
 
+def ewma_bias_corrected(cats: np.ndarray, n_categories: int, alpha: float) -> np.ndarray:
+    """EWMA without a prior (D-27 option b): the normalised exponentially weighted average of x_1..x_t.
+
+    m_t = (1 - alpha) m_{t-1} + alpha x_t, m_0 = 0;  z_hat_t = m_t / (1 - (1 - alpha)^t);  z_hat_0 = uniform.
+    """
+    if not 0.0 < alpha <= 1.0:
+        raise ValueError("alpha must be in (0, 1]")
+    cats, single = _prepare(cats, n_categories)
+    B, T = cats.shape
+    x = _one_hot(cats, n_categories)
+    out = np.empty((B, T + 1, n_categories))
+    out[:, 0] = 1.0 / n_categories
+    m = np.zeros((B, n_categories))
+    for t in range(1, T + 1):
+        m = (1.0 - alpha) * m + alpha * x[:, t - 1]
+        out[:, t] = m / (1.0 - (1.0 - alpha) ** t)
+    return _finish(out, single)
+
+
 def sliding_window(cats: np.ndarray, n_categories: int, window: int) -> np.ndarray:
     """Category frequencies over the last min(t, W) observations; z_hat_0 = uniform."""
     if window < 1:
@@ -99,7 +118,7 @@ def matched_window(alpha: float) -> int:
 class EstimatorSpec:
     """A named estimator configuration, usable as ``spec(cats, C)``."""
 
-    kind: str          # "cumulative" | "ewma" | "window"
+    kind: str          # "cumulative" | "ewma" | "ewma_bc" | "window"
     param: float | int | None = None
 
     @property
@@ -113,6 +132,14 @@ class EstimatorSpec:
             return cumulative_mean(cats, n_categories)
         if self.kind == "ewma":
             return ewma(cats, n_categories, float(self.param))
+        if self.kind == "ewma_bc":
+            return ewma_bias_corrected(cats, n_categories, float(self.param))
         if self.kind == "window":
             return sliding_window(cats, n_categories, int(self.param))
         raise ValueError(f"unknown estimator kind {self.kind!r}")
+
+
+# D-27: the proposed adaptive estimator; alpha tuned on the pooled mix of tuning seeds (D-25).
+PROPOSED_ESTIMATOR = EstimatorSpec("ewma_bc", 0.05)
+STATIC_ESTIMATOR = EstimatorSpec("cumulative")
+UNIFORM_START_ABLATION = EstimatorSpec("ewma", 0.07)

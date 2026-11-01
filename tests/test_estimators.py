@@ -7,6 +7,7 @@ from adaptdiv.estimators import (
     categories_of,
     cumulative_mean,
     ewma,
+    ewma_bias_corrected,
     ewma_mean_age,
     matched_window,
     sliding_window,
@@ -56,7 +57,14 @@ def test_limiting_cases():
 
 
 @pytest.mark.parametrize(
-    "spec", [EstimatorSpec("cumulative"), EstimatorSpec("ewma", 0.1), EstimatorSpec("ewma", 0.7), EstimatorSpec("window", 7)]
+    "spec",
+    [
+        EstimatorSpec("cumulative"),
+        EstimatorSpec("ewma", 0.1),
+        EstimatorSpec("ewma", 0.7),
+        EstimatorSpec("ewma_bc", 0.1),
+        EstimatorSpec("window", 7),
+    ],
 )
 def test_estimates_stay_on_simplex(spec):
     cats = np.random.default_rng(2).integers(0, 10, (6, 200))
@@ -66,7 +74,9 @@ def test_estimates_stay_on_simplex(spec):
     assert np.allclose(z[:, 0], 0.1)  # empty history -> uniform
 
 
-@pytest.mark.parametrize("spec", [EstimatorSpec("cumulative"), EstimatorSpec("ewma", 0.2), EstimatorSpec("window", 5)])
+@pytest.mark.parametrize(
+    "spec", [EstimatorSpec("cumulative"), EstimatorSpec("ewma", 0.2), EstimatorSpec("ewma_bc", 0.2), EstimatorSpec("window", 5)]
+)
 def test_no_look_ahead(spec):
     """Changing observations after step t must not change estimates up to t."""
     rng = np.random.default_rng(3)
@@ -100,6 +110,33 @@ def test_isolated_noisy_observation_effect_is_alpha():
     z = ewma(cats, 3, 0.1)
     assert np.isclose(z[-1][2] - z[-2][2], 0.1 * (1 - z[-2][2]))
     assert z[-1].argmax() == 0  # a single noisy click does not change the dominant category
+
+
+def test_bias_corrected_ewma_hand_example():
+    """alpha=0.5: m = (.5,0,0) -> (.75,0,0) -> (.375,.5,0); divide by 1 - 0.5^t = .5, .75, .875."""
+    z = ewma_bias_corrected(CATS, C, 0.5)
+    expected = np.array([[1 / 3, 1 / 3, 1 / 3], [1, 0, 0], [1, 0, 0], [3 / 7, 4 / 7, 0]])
+    assert np.allclose(z, expected)
+
+
+def test_bias_corrected_is_normalised_weighted_average():
+    rng = np.random.default_rng(6)
+    cats, alpha = rng.integers(0, 5, 40), 0.15
+    x = np.eye(5)[cats]
+    w = (1 - alpha) ** (len(cats) - 1 - np.arange(len(cats)))
+    assert np.allclose(ewma_bias_corrected(cats, 5, alpha)[-1], w @ x / w.sum())
+
+
+def test_bias_corrected_limits():
+    cats = np.random.default_rng(7).integers(0, 4, 30)
+    assert np.allclose(ewma_bias_corrected(cats, 4, 1.0)[1:], np.eye(4)[cats])
+    assert np.allclose(ewma_bias_corrected(cats, 4, 1e-7), cumulative_mean(cats, 4), atol=1e-4)  # alpha -> 0
+
+
+def test_bias_corrected_converges_to_plain_ewma():
+    """The two versions differ only through (1 - alpha)^t, so they agree once the start has faded."""
+    cats = np.random.default_rng(8).integers(0, 4, 300)
+    assert np.allclose(ewma_bias_corrected(cats, 4, 0.1)[-1], ewma(cats, 4, 0.1)[-1], atol=1e-9)
 
 
 def test_matched_memory():
