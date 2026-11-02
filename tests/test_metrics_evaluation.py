@@ -9,7 +9,7 @@ import pytest
 import adaptdiv
 from adaptdiv import metrics as M
 from adaptdiv.config import PopulationConfig, SimulationConfig
-from adaptdiv.estimators import categories_of
+from adaptdiv.estimators import PROPOSED_ESTIMATOR, categories_of
 from adaptdiv.evaluation import (
     EvalConfig,
     build_profiles,
@@ -181,6 +181,18 @@ def test_theta_one_dpp_equals_top_k_records(tiny):
     for key, value in rec.items():
         if key[2] == "as_dpp":
             assert value == rec[(key[0], key[1], "adaptive_topk", key[3], key[4])]
+
+
+def test_extra_profile_matches_the_same_built_in_estimator(tiny):
+    """An extra profile with the proposed spec gives the proposed records, and changes nothing else."""
+    base = Method("adaptive_topk", "adaptive")
+    extra = Method("copy", "copy")
+    plain = evaluate(tiny, (base,), EV)
+    rec = evaluate(tiny, (base, extra), EV, {"copy": PROPOSED_ESTIMATOR})
+    for key, value in plain.items():
+        assert rec[key] == value
+        if key[2] == "adaptive_topk":
+            assert rec[(key[0], key[1], "copy", key[3], key[4])] == value
 
 
 # ------------------------------------------------------------------ leakage

@@ -145,8 +145,13 @@ def estimator_records(records: Records, kappa, scen, cats, cell, cfg: Simulation
             records[(kappa, scen, name, "post", "tracking")] = float(np.mean(post))
 
 
-def evaluate(data: SimulatedData, methods: tuple[Method, ...], ev: EvalConfig = EvalConfig()) -> Records:
-    """Seed-level records for all cells of one seed."""
+def evaluate(
+    data: SimulatedData,
+    methods: tuple[Method, ...],
+    ev: EvalConfig = EvalConfig(),
+    extra_profiles: dict[str, EstimatorSpec] | None = None,
+) -> Records:
+    """Seed-level records for all cells of one seed. ``extra_profiles`` adds estimators by profile name."""
     cfg = data.config
     public = data.catalogue.public()
     S = similarity_matrix(public.embeddings)
@@ -163,6 +168,8 @@ def evaluate(data: SimulatedData, methods: tuple[Method, ...], ev: EvalConfig = 
 
         needs_oracle = any(m.profile == "oracle" for m in methods)
         profiles = build_profiles(cats, public.n_categories, z if needs_oracle else None)
+        for name, spec in (extra_profiles or {}).items():
+            profiles[name] = spec(cats, public.n_categories)[:, :cats.shape[1]]
         starts = [s for s, _, _ in switch_events(scen, cfg)]
         phases = {"overall": np.ones(steps.shape[0], dtype=bool)}
         if starts:
@@ -184,5 +191,11 @@ def evaluate(data: SimulatedData, methods: tuple[Method, ...], ev: EvalConfig = 
     return records
 
 
-def evaluate_seed(seed: int, cfg: SimulationConfig, methods: tuple[Method, ...], ev: EvalConfig = EvalConfig()) -> Records:
-    return evaluate(generate(seed, cfg), methods, ev)
+def evaluate_seed(
+    seed: int,
+    cfg: SimulationConfig,
+    methods: tuple[Method, ...],
+    ev: EvalConfig = EvalConfig(),
+    extra_profiles: dict[str, EstimatorSpec] | None = None,
+) -> Records:
+    return evaluate(generate(seed, cfg), methods, ev, extra_profiles)

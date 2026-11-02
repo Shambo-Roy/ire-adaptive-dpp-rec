@@ -1,0 +1,35 @@
+{
+  "catalogue": {
+    "n_categories": 10,
+    "items_per_category": 50,
+    "embedding_dim": 32,
+    "sigma": 1.0,
+    "popularity_spread": 1.0
+  },
+  "interaction": {
+    "gamma": 1.0,
+    "taste_weight": 0.5,
+    "noise_rate": 0.05
+  },
+  "scenario": {
+    "horizon": 200,
+    "abrupt_switch": 100,
+    "gradual_start": 80,
+    "gradual_width": 40,
+    "recurrent_switches": [
+      70,
+      140
+    ],
+    "noisy_noise_rate": 0.3,
+    "shift_magnitude": 1.0
+  },
+  "population": {
+    "kappas": [
+      0.1,
+      1.0
+    ],
+    "users_per_cell": 100,
+    "train_users": 1000,
+    "train_horizon": 50
+  }
+}

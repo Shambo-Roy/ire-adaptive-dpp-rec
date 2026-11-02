@@ -87,3 +87,4 @@ class SimulationConfig:
 # Seed protocol (SIMULATION_DESIGN.md section 7). Evaluation seeds are never used for tuning.
 TUNING_SEEDS: tuple[int, ...] = tuple(range(0, 5))
 EVALUATION_SEEDS: tuple[int, ...] = tuple(range(100, 120))
+EXPLORATORY_SEEDS: tuple[int, ...] = tuple(range(200, 220))  # M9 follow-ups, after evaluation seeds were spent

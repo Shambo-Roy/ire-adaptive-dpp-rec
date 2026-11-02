@@ -336,6 +336,10 @@ python experiments/dpp_check.py          # M6 greedy quality, speed, theta sweep
 python experiments/select_theta.py       # M7 D-29 theta selection + pipeline rehearsal, tuning seeds (~7 min, 5 processes)
 python experiments/main_experiment.py --dry-run --out <dir>  # M8 rehearsal: tuning seeds, tiny scale (~2 s)
 python experiments/main_experiment.py    # M8 confirmatory run, EVALUATION seeds (~14 min, 5 processes)
+python experiments/m9_figures.py         # M9 figures and per-scenario table from saved M8 records (seconds)
+python experiments/alpha_start_study.py  # M9 exploratory alpha x start study, seeds 200-219 (~9 min, 5 processes)
+python experiments/sensitivity_study.py  # M9 exploratory theta and eta sweeps, seeds 200-219 (~27 min, 5 processes)
+python experiments/sensitivity_figures.py <run folder>  # M9 sweep figures from saved records (seconds)
 ```
 `sim_check.py` refuses evaluation seeds (≥ 100). Output goes to
 `results/m3_sim_check/<run_id>/` (`config.json`, `summary.json`,
@@ -354,6 +358,12 @@ Recorded 2026-10-26 (Milestone 0 inspection):
   `origin = https://github.com/Shambo-Roy/ire-adaptive-dpp-rec` (public).
 
 ## 13. Test cases and outcomes
+
+### Milestone 9 (2026-11-02): `python -m pytest -q` → **160 passed in 5.46 s**
+- One new test: `test_extra_profile_matches_the_same_built_in_estimator`. An `extra_profiles` estimator
+  gives the same records as the built-in one.
+- Run-level check: the sweep's default cells match the `α` × start study's on the same seeds, 5,120 of
+  5,120 values exactly.
 
 ### Milestone 7 (2026-11-01): `python -m pytest -q` → **159 passed in 6.01 s**
 - `test_metrics_evaluation.py` (20): hand-calculated NDCG, recall, EU, coverage, ILD; repeated
@@ -677,6 +687,88 @@ have now been seen, so any new `α` would need fresh seeds and would be labelled
   gradual cases and 29% of recurrent ones. EWMA is never censored. Censored lags are recorded at
   the horizon, so H1a's 67 steps understates the true gap.
 
+### Milestone 9 — per-scenario analysis of the M8 run (2026-11-02) [MEASURED, descriptive]
+Output: `results/m9_analysis/20261102-151914/` (`tradeoff.png`, `dpp_effect.png`, `scenario_ndcg.png`,
+`per_scenario.csv`). Built from the saved M8 records, with no new simulation. Not in the Holm family.
+
+- **Pooling hid a per-cell cost.** H4b met the ±3% rule pooled over `κ`, but with spread users Adaptive
+  Top-K's overall NDCG is 3.7% below Static Top-K in the stable scenario (−0.0060, CI [−0.0064, −0.0054])
+  and 4.5% below in the noisy one (−0.0062, CI [−0.0067, −0.0058]). Focused users lose 0.8% and 1.4%.
+  H4b's frozen verdict stands, and these cells are reported beside it.
+- The DPP's effect on post-shift NDCG has the same sign in all 6 drift cells for each profile: positive
+  with static (+0.0015 to +0.0142), negative with adaptive (−0.0011 to −0.0049). Its static gain is
+  far smaller in the recurrent scenario, where the old interests return.
+
+### Milestone 9 — α versus EWMA start (2026-11-02) [MEASURED, EXPLORATORY]
+Run: `results/m9_alpha_start/20261102-151847/`, fresh seeds 200–219, `U = 100`, `θ = 0.5`, 553 s. No
+NaN. Decided after seeing M8, so it is a follow-up and not a confirmatory test.
+
+Effects with 95% CIs, Top-K (DPP values agree within 0.0003 for NDCG):
+
+| Quantity | α 0.07 − 0.05 | Uniform − bias-corrected start |
+|---|---|---|
+| Post-shift NDCG | +0.0114 [0.0112, 0.0116] | +0.00002 [0.00001, 0.00002] |
+| Post-shift coverage | −0.0225 [−0.0235, −0.0215] | +0.0003 [0.0003, 0.0003] |
+| Stable overall NDCG | −0.0024 [−0.0025, −0.0023] | +0.00002 [0.00000, 0.00004] |
+| All-scenario overall NDCG | +0.0008 [0.0007, 0.0009] | +0.00002 [0.00000, 0.00004] |
+
+**Finding.** The M8 gap came from `α`, not the start. The start's effect on post-shift NDCG is
+negligible because by `t ≥ 70` its leftover weight `(1−α)^t` is under 3%. `α = 0.07` trades about 6%
+more post-shift NDCG for about 1% less stable NDCG and less coverage. Overall the two are close, so
+neither dominates. `α = 0.05` was chosen for tracking error, and the frozen M8 results keep it. This
+also supports D-27: bias correction costs nothing in relevance here, and removes the start's effect
+on early tracking.
+
+### Milestone 9 — sensitivity to `θ` and η (2026-11-02) [MEASURED, EXPLORATORY]
+Run: `results/m9_sensitivity/20261102-164513/`, seeds 200–219, `U = 100`, `α = 0.05`, 1,614 s, including
+`frontier.png` and `interaction.png`. The bias-corrected EWMA and cumulative mean are the profiles.
+CIs are paired bootstrap across seeds, not corrected for the number of comparisons, and show seed
+variability inside this simulator only.
+
+Design defaults: η applies to the evaluation users and the training population, so popularity is
+re-estimated at each level. The noisy scenario keeps its own η = 0.3 and runs only at the default
+η = 0.05; other η levels use the same random streams for the four remaining scenarios.
+
+**`θ` sweep, η = 0.05, pooled over `κ` and drift scenarios, post-shift window:**
+
+| θ | DPP effect on NDCG, static | DPP effect on NDCG, adaptive | Interaction (95% CI) | Adaptive coverage gain | Adaptive EU loss |
+|---|---|---|---|---|---|
+| 0.9 | +0.0010 | +0.0000 | −0.0010 [−0.0011, −0.0009] | +0.0125 | 0.03% |
+| 0.7 | +0.0036 | −0.0006 | −0.0042 [−0.0045, −0.0039] | +0.0461 | 0.62% |
+| 0.5 | +0.0073 | −0.0033 | −0.0105 [−0.0111, −0.0100] | +0.0976 | 3.12% |
+| 0.3 | +0.0118 | −0.0120 | −0.0238 [−0.0245, −0.0231] | +0.1847 | 10.84% |
+
+**η sweep, `θ = 0.5` for the DPP columns, Top-K for the adaptation columns:**
+
+| η | Adaptive − Static, post-shift NDCG | Stable NDCG, all | Focused | Spread | Interaction (95% CI) |
+|---|---|---|---|---|---|
+| 0 | +0.1079 | −1.59% | −0.64% | −3.43% | −0.0110 [−0.0115, −0.0105] |
+| 0.05 | +0.1003 | −1.68% | −0.69% | −3.58% | −0.0105 [−0.0111, −0.0100] |
+| 0.15 | +0.0861 | −1.92% | −0.83% | −3.95% | −0.0099 [−0.0105, −0.0093] |
+| 0.3 | +0.0648 | −2.51% | −1.26% | −4.73% | −0.0087 [−0.0094, −0.0081] |
+
+**Findings.**
+- **Substitution held at every setting tested.** The interaction's CI excludes zero at all four `θ` and
+  all four η, and it is negative in both `κ` groups. It grows as the DPP gets stronger and shrinks a
+  little as noise rises.
+- **Adaptation is far larger than diversification here.** The strongest DPP tested adds 0.0118 to the
+  static profile. Adaptive Top-K's lead over Static Top-K is 0.1003, and even Static DPP at `θ = 0.3`
+  (0.0935) stays far below Adaptive Top-K (0.1819). So "substitution" describes the sign of the
+  interaction; the DPP does not replace adaptation.
+- **The cost of diversity is not linear in `θ`.** For the adaptive profile, `θ = 0.7` costs 0.33% of
+  post-shift NDCG for +0.046 coverage. `θ = 0.3` costs 6.6% for +0.185. For spread users at `θ = 0.7` the
+  NDCG effect is −0.0001 [−0.0003, +0.0001] for +0.060 coverage.
+- **Adaptation survives noise but pays more for it.** The post-shift gain falls by about 40% from η = 0
+  to 0.3 and stays large. The stable cost grows to 2.51%. Spread users exceed 3% at every η tested,
+  including η = 0, so that cost does not depend on noise alone.
+- At η = 0.3 the DPP's post-shift NDCG cost for spread adaptive users is −0.0001 [−0.0004, +0.0003], with
+  +0.125 coverage.
+- At the default η the stable cost is −1.68% on these fresh seeds, close to about −1.8% in M8.
+
+These results change no verdict and no frozen value. `θ = 0.7` looks attractive here, but it was seen
+after the fact, and D-29 fixed the selection rule in advance: the smallest `θ` within the 3% EU limit on
+tuning seeds. Any change would need its own confirmation on fresh seeds.
+
 ## 15. Problems encountered and resolutions
 - **2026-10-26 (M0):** The working tree was found with every tracked file deleted
   (uncommitted deletions) and the git-ignored data, processed, and checkpoint folders
@@ -743,6 +835,12 @@ sampling).
 - Adaptive DPP's EU loss was 3.04%, slightly above the 3% limit met on tuning seeds.
 - Adaptation has real costs: worse stable tracking (H2), more false switches (H3), and about 1.8%
   lower NDCG with stable interests (H4b, inside the ±3% margin).
+
+**2026-11-02 (M9), exploratory negative results on seeds 200–219** (details in §14):
+- No tested `θ` or η produced complementarity. The DPP never raised adaptive post-shift NDCG by a
+  meaningful amount; its largest effect was +0.0001 for spread users at `θ = 0.9`.
+- `θ = 0.3` costs the adaptive profile about 6.6% of post-shift NDCG and 10.84% of post-shift EU.
+- Spread users' stable NDCG loss exceeds 3% at every η tested, even with no click noise.
 
 ## 17. Assumptions, limitations, threats to validity, reproducibility
 Risks identified in Milestone 0 (mitigation in brackets):
@@ -830,6 +928,12 @@ calibration baseline is blocked until Steck (2018) is available.
 
 As of 2026-11-02 (after M8): D-18 is approved. Open: D-07 (deadline); D-19 is still blocked; the
 scope of M9 (which sensitivity analyses, and on which seeds, because the evaluation seeds are spent).
+
+Update 2026-11-02: M9 scope approved. Open: the cost of the η and `θ` sensitivity runs, which the author
+sees before they start; D-07; D-19.
+
+Update 2026-11-02: the author approved the sweep cost and it has run. Open: approval to start M10; D-07;
+D-19, which also affects the report's calibration section.
 
 ## 19. Chronological milestone history
 
@@ -1003,6 +1107,19 @@ scope of M9 (which sensitivity analyses, and on which seeds, because the evaluat
 - The script itself was uncommitted when it ran; `environment.json` records its SHA-256.
 - Calibration not run (D-19 blocked).
 - **Status:** awaiting review. Results not committed.
+
+Update: the author committed and pushed M8 as `e7f7aad`.
+
+### Milestone 9 — Analysis and exploratory follow-ups (2026-11-02, in progress)
+- Added `experiments/m9_figures.py` and `experiments/alpha_start_study.py`, `EXPLORATORY_SEEDS`
+  (200–219), and an optional `extra_profiles` argument on `evaluate`. Existing behaviour is unchanged;
+  a new test checks that. Full suite **160 passed**.
+- Results in §14. Two superseded draft figure folders from the same session were deleted: a legend
+  overlapped bars, and a title understated the per-cell cost.
+- ~~Not done yet: η and `θ` sensitivity runs.~~ Not committed.
+- Update 2026-11-02: M9 complete. Added `experiments/sensitivity_study.py` and
+  `experiments/sensitivity_figures.py`; the sweep ran in 1,614 s against an estimate of about 35 minutes.
+  Real-data validation was left out (D-31). Results in §14. Full suite **160 passed**. Not committed.
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
@@ -1203,3 +1320,27 @@ Update 2026-11-02 (M8, this simulation only; full conclusions wait for M10):
   ablation also changes the start as well as `α`, so it can't identify the cause.
 - **H4b passed, so is adaptation free on stable interests?** No. It is about 1.8% lower, with a CI that
   excludes zero. "Equivalent" only means inside the ±3% margin we set in advance.
+
+### Milestone 9
+- **Why new seeds for the α study?** The question came from looking at evaluation results. Answering
+  it on those same seeds would mix discovery with confirmation.
+- **Why is the start's effect so small?** Its weight is `(1−α)^t`, which is under 3% by the first shift.
+- **Should the final method use `α = 0.07`?** Not as a claim from this study. It gains after shifts and
+  loses when stable, so the better choice depends on how often interests change. A chosen value would
+  need its own confirmation on fresh seeds.
+- **What did per-scenario analysis add?** Spread users lose 3.7–4.5% in NDCG without drift, a cost the
+  pooled H4b check does not show.
+- **Does substitution mean the DPP can replace adaptation?** No. It means the DPP helps less when the
+  profile is current. Its largest gain for the static profile is 0.0118, against 0.1003 from adaptation.
+- **Why does a DPP help a stale profile at all?** A stale profile puts the list on old categories.
+  Diversity spreads some slots onto categories the user may have moved to, so it hedges against error.
+- **Why does the static DPP's EU rise while the adaptive DPP's falls?** A list built on wrong weights
+  has room to improve. A list built on nearly right weights can only give up relevance.
+- **Why not switch to `θ = 0.7`?** It looks cheap here, but it was seen after the fact on exploratory
+  seeds, and D-29 was fixed beforehand. A change would need confirming on fresh seeds.
+- **Why are the CIs so narrow?** Each is across 20 paired seeds with shared randomness. They show seed
+  variability in this simulator, not how far the result generalises.
+- **Why does stable NDCG fall with noise while static post-shift NDCG rises slightly (0.0803 to 0.0880)?**
+  Noise clicks are uniform across categories, so held-out clicks get harder to predict when the profile
+  is right. A stale profile is wrong anyway, and noise pushes the target clicks towards a flatter mix
+  that a stale list misses a little less. This explanation is my reading; the sweep did not test it.

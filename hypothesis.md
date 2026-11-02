@@ -84,6 +84,12 @@ Reported under the frozen rules, unchanged. Numbers and CIs: `IMPLEMENTATION_LOG
 | H6a | Not dominated |
 | H6b | Significant, direction: substitution |
 
+Per-scenario note (M9, descriptive): H4b holds pooled, but spread users lose 3.7% (stable) and 4.5%
+(noisy). The exploratory `α` × start study is in `IMPLEMENTATION_LOG.md` §14. Neither changes a verdict.
+
+Sensitivity note (M9, exploratory, seeds 200–219): the H6b substitution direction held at every `θ`
+(0.3–0.9) and η (0–0.3) tested. This describes the simulator's behaviour and changes no verdict.
+
 ## Amendments
 - **2026-11-01 (before any evaluation-seed run; made before the freeze):** following D-27,
   "EWMA" in H1–H3 and "adaptive profile" mean **bias-corrected EWMA**

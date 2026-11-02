@@ -1,0 +1,33 @@
+{
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "numpy": "2.5.2",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "git_head": "e7f7aad9c461c5b6ffbd44e766869c3d1c99ddb2",
+  "git_status": "M adaptdiv/config.py\n M adaptdiv/evaluation.py\n M tests/test_metrics_evaluation.py\n?? \"Milestone 8.zip\"\n?? experiments/alpha_start_study.py\n?? experiments/m9_figures.py\n?? results/m9_alpha_start/\n?? results/m9_analysis/",
+  "seeds": [
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219
+  ],
+  "theta": 0.5,
+  "processes": 5,
+  "exploratory": true,
+  "runtime_seconds": 552.8478337000124
+}

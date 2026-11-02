@@ -580,6 +580,21 @@ Per-scenario results are reported as descriptive.
 
 ---
 
+## Group F — Raised in Milestone 9
+
+### D-31 — Follow-ups after the evaluation seeds are spent
+**Status:** APPROVED 2026-11-02 by the author.
+Seeds 200–219 serve follow-up studies, every one labelled exploratory: the `α` × start study, then
+η and `θ` sensitivity. The cost of the sensitivity runs is shown to the author before they start. The
+frozen M8 configuration and its verdicts do not change. Real-data validation is left out unless the
+deadline allows it (D-07).
+
+Update 2026-11-02: the author approved the sweep at the stated cost of about 35 minutes. Routine design
+defaults, recorded here: `θ` in {0.9, 0.7, 0.5, 0.3} at η = 0.05; η in {0, 0.15, 0.3} at `θ = 0.5`; η
+also applies to the training population; the noisy scenario runs only at the default η.
+
+---
+
 ## Revision history
 - 2026-10-26 — File created in Milestone 0. All entries are PENDING or PRELIMINARY.
 - 2026-10-26 — D-01 decided (fresh repo). D-02, D-03, D-05 and D-06 approved.
@@ -605,3 +620,5 @@ Per-scenario results are reported as descriptive.
   (deadline) and D-11 … D-17 plus the scale part of D-18 (confirmed at their own
   milestones).
 - 2026-11-02 — D-18 M8 scale approved by the author.
+- 2026-11-02 — D-31 added and approved (M9 scope).
+- 2026-11-02 — D-31: sweep cost approved; design defaults recorded.
