@@ -1,0 +1,98 @@
+{
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "numpy": "2.5.2",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "git_head": "f0fc8588d325f08617403614426c20a56969038b",
+  "git_status": "?? experiments/main_experiment.py\n?? results/m8_main/",
+  "script_sha256": "9c5c74cbaca4ec752ae25ed1cec41bdb8a4418053a52c33940e8295d97fbc616",
+  "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119
+  ],
+  "theta": 0.5,
+  "processes": 5,
+  "eval_config": {
+    "k": 10,
+    "h": 5,
+    "burn_in": 20,
+    "post_window": 50,
+    "crossover_run": 5,
+    "stride": 1
+  },
+  "methods": [
+    {
+      "name": "popularity",
+      "profile": "none",
+      "theta": 1.0
+    },
+    {
+      "name": "static_topk",
+      "profile": "static",
+      "theta": 1.0
+    },
+    {
+      "name": "adaptive_topk",
+      "profile": "adaptive",
+      "theta": 1.0
+    },
+    {
+      "name": "static_dpp",
+      "profile": "static",
+      "theta": 0.5
+    },
+    {
+      "name": "adaptive_dpp",
+      "profile": "adaptive",
+      "theta": 0.5
+    },
+    {
+      "name": "oracle_topk",
+      "profile": "oracle",
+      "theta": 1.0
+    },
+    {
+      "name": "oracle_dpp",
+      "profile": "oracle",
+      "theta": 0.5
+    },
+    {
+      "name": "uniform_start_topk",
+      "profile": "uniform_start",
+      "theta": 1.0
+    },
+    {
+      "name": "uniform_start_dpp",
+      "profile": "uniform_start",
+      "theta": 0.5
+    },
+    {
+      "name": "window_topk",
+      "profile": "window",
+      "theta": 1.0
+    },
+    {
+      "name": "window_dpp",
+      "profile": "window",
+      "theta": 0.5
+    }
+  ],
+  "runtime_seconds": 812.0720794000663
+}

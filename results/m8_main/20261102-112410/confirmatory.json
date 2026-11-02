@@ -1,0 +1,200 @@
+{
+  "seeds": [
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119
+  ],
+  "dry_run": false,
+  "tests": [
+    {
+      "test": "H1a lag: cumulative - EWMA",
+      "mean_diff": 67.29408333333333,
+      "effect_for_sesoi": 67.29408333333333,
+      "ci_low": 67.01091249999999,
+      "ci_high": 67.60759791666668,
+      "p": 1.9073486328125e-06,
+      "predicted_sign": 1,
+      "sesoi": 2.0,
+      "p_holm": 1.52587890625e-05,
+      "significant": true,
+      "supported": true,
+      "direction": "positive",
+      "practically_meaningful": true
+    },
+    {
+      "test": "H1b post-shift tracking: cumulative - EWMA",
+      "mean_diff": 0.24815374450165653,
+      "effect_for_sesoi": 0.24815374450165653,
+      "ci_low": 0.24686405930075161,
+      "ci_high": 0.24940677162046765,
+      "p": 1.9073486328125e-06,
+      "predicted_sign": 1,
+      "sesoi": 0.02,
+      "p_holm": 1.52587890625e-05,
+      "significant": true,
+      "supported": true,
+      "direction": "positive",
+      "practically_meaningful": true
+    },
+    {
+      "test": "H2 stable tracking: EWMA - cumulative",
+      "mean_diff": 0.04503897317937874,
+      "effect_for_sesoi": 0.04503897317937874,
+      "ci_low": 0.044518834534028134,
+      "ci_high": 0.04557573227302099,
+      "p": 1.9073486328125e-06,
+      "predicted_sign": 1,
+      "sesoi": 0.02,
+      "p_holm": 1.52587890625e-05,
+      "significant": true,
+      "supported": true,
+      "direction": "positive",
+      "practically_meaningful": true
+    },
+    {
+      "test": "H3 noisy false switches: EWMA - cumulative",
+      "mean_diff": 0.056956944444444435,
+      "effect_for_sesoi": 0.056956944444444435,
+      "ci_low": 0.055340208333333335,
+      "ci_high": 0.05840559027777779,
+      "p": 1.9073486328125e-06,
+      "predicted_sign": 1,
+      "sesoi": null,
+      "p_holm": 1.52587890625e-05,
+      "significant": true,
+      "supported": true,
+      "direction": "positive",
+      "practically_meaningful": null
+    },
+    {
+      "test": "H4a post-shift NDCG: Adaptive Top-K - Static Top-K",
+      "mean_diff": 0.10065910914212957,
+      "effect_for_sesoi": 1.3054067511862713,
+      "ci_low": 1.2215459825521495,
+      "ci_high": 1.3972905863751484,
+      "p": 1.9073486328125e-06,
+      "predicted_sign": 1,
+      "sesoi": 0.03,
+      "p_holm": 1.52587890625e-05,
+      "significant": true,
+      "supported": true,
+      "direction": "positive",
+      "practically_meaningful": true
+    },
+    {
+      "test": "H5a coverage: Adaptive DPP - Adaptive Top-K",
+      "mean_diff": 0.08900900568181816,
+      "effect_for_sesoi": 0.08900900568181816,
+      "ci_low": 0.08621010937499997,
+      "ci_high": 0.09192443963068182,
+      "p": 1.9073486328125e-06,
+      "predicted_sign": 1,
+      "sesoi": null,
+      "p_holm": 1.52587890625e-05,
+      "significant": true,
+      "supported": true,
+      "direction": "positive",
+      "practically_meaningful": null
+    },
+    {
+      "test": "H5b relative NDCG cost of DPP: focused - spread",
+      "mean_diff": 0.003819052893512287,
+      "effect_for_sesoi": 0.003819052893512287,
+      "ci_low": 0.0011548126952919062,
+      "ci_high": 0.0064410168487057705,
+      "p": 0.023950576782226562,
+      "predicted_sign": 1,
+      "sesoi": null,
+      "p_holm": 0.023950576782226562,
+      "significant": true,
+      "supported": true,
+      "direction": "positive",
+      "practically_meaningful": null
+    },
+    {
+      "test": "H6b adaptation x selector interaction on post-shift NDCG",
+      "mean_diff": -0.010562499956599709,
+      "effect_for_sesoi": -0.010562499956599709,
+      "ci_low": -0.011110509819932907,
+      "ci_high": -0.010046357474565773,
+      "p": 1.9073486328125e-06,
+      "predicted_sign": 0,
+      "sesoi": null,
+      "p_holm": 1.52587890625e-05,
+      "significant": true,
+      "supported": true,
+      "direction": "negative",
+      "practically_meaningful": null
+    }
+  ],
+  "h4b": {
+    "test": "H4b stable equivalence",
+    "ci_low": -0.019007229713619903,
+    "ci_high": -0.016377302651768816,
+    "equivalent": true
+  },
+  "h6a": {
+    "test": "H6a not dominated",
+    "dominated_by": [],
+    "not_dominated": true,
+    "detail": {
+      "popularity": {
+        "ndcg_ci": [
+          -0.07618585679037089,
+          -0.0712621086445747
+        ],
+        "coverage_ci": [
+          0.27035344583333354,
+          0.33363198750000017
+        ]
+      },
+      "static_topk": {
+        "ndcg_ci": [
+          -0.09926477161923884,
+          -0.09573424626272191
+        ],
+        "coverage_ci": [
+          -0.09019201666666668,
+          -0.08173334583333332
+        ]
+      },
+      "adaptive_topk": {
+        "ndcg_ci": [
+          0.002789736387111955,
+          0.0035233910861525624
+        ],
+        "coverage_ci": [
+          -0.10606361250000002,
+          -0.09843864374999997
+        ]
+      },
+      "static_dpp": {
+        "ndcg_ci": [
+          -0.09170729381428548,
+          -0.08848102082932856
+        ],
+        "coverage_ci": [
+          0.017146897916666685,
+          0.021030452083333335
+        ]
+      }
+    }
+  }
+}

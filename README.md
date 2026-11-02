@@ -8,7 +8,7 @@ simulation** where the true interest vector `z_t` is known. The recommender sees
 the interactions.
 
 ## Status
-**Milestone 7 (evaluation framework): complete, awaiting review.** Everything up to the evaluator and the frozen confirmatory analysis is implemented and tested, with alpha = 0.05 and theta = 0.5 fixed on tuning seeds. The main experiments have not been run.
+**Milestone 8 (main experiments): complete, awaiting review.** The frozen analysis ran once on evaluation seeds 100-119, with alpha = 0.05 and theta = 0.5 fixed on tuning seeds. Results are in `results/m8_main/20261102-112410/` and `IMPLEMENTATION_LOG.md` section 14. They apply to this simulation only.
 
 | Document | Purpose |
 |---|---|
@@ -41,7 +41,7 @@ adaptdiv/      config, seeding, catalogue, scenarios, simulator   (Milestone 3)
                dpp, recommenders                                  (Milestone 6)
                metrics, evaluation, stats, confirmatory           (Milestone 7)
 experiments/   sim_check.py, estimator_study.py, ewma_init_comparison.py, relevance_check.py,
-               dpp_check.py, select_theta.py
+               dpp_check.py, select_theta.py, main_experiment.py
 tests/         pytest suite
 results/       per-run outputs (config, summary, environment, plots)
 ```

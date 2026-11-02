@@ -323,6 +323,7 @@ A 2×2 factorial design plus two reference points:
   bootstrap CI), Holm correction, and effect sizes.
 
 ### D-18 — Scale and seed protocol (approve at M3 and M8)
+**M8 scale APPROVED 2026-11-02 by the author; run as proposed below (812 s).**
 **M8 proposal (2026-11-01), PENDING approval:** `U = 100` per cell, 20 evaluation seeds
 (100–119), every step, default config, all D-16 methods except calibration. Measured basis:
 the θ run did 15 methods on 5 seeds in 392 s using 5 processes. M8 has 5 DPP methods on 20 seeds,
@@ -603,3 +604,4 @@ Per-scenario results are reported as descriptive.
   D-19 (option b), D-20, D-21 and D-22 … D-26, all as proposed. Still open: D-07
   (deadline) and D-11 … D-17 plus the scale part of D-18 (confirmed at their own
   milestones).
+- 2026-11-02 — D-18 M8 scale approved by the author.

@@ -307,7 +307,14 @@ M2 proposal: tuning seeds 0–4, evaluation seeds 100–119. One hyperparameter 
 per method, tuned on a pooled scenario mix (D-25). Common random numbers across
 scenarios (`SIMULATION_DESIGN.md` §7).
 
+**2026-11-02 (M8), as run:** `U = 100`, 1,000 training users, 20 evaluation seeds, every step,
+`K = 10`, `h = 5`, `α = 0.05`, `θ = 0.5` (D-18 scale approved by the author).
+
 ## 9. Baselines and ablation studies [PLANNED — D-16]
+**2026-11-02 (M8), as run [IMPL+TESTED]:** the 2×2 methods, Popularity, Oracle Top-K and Oracle DPP,
+plus ablations uniform-start EWMA and window(40), each with Top-K and DPP. Calibration (D-19) was not
+run: Steck (2018) is still unavailable. MMR stays dropped (D-16). Sensitivity sweeps were not run at M8.
+
 A 2×2 design of {static, adaptive} × {Top-K, DPP}, plus popularity, plus an oracle-z
 diagnostic ceiling. Estimator variants: EWMA vs sliding window. Sensitivities: `α`/`W`,
 noise `η`, interest concentration `κ`, drift speed `W`, and the DPP trade-off.
@@ -327,6 +334,8 @@ python experiments/ewma_init_comparison.py  # D-27 evidence: uniform-start vs bi
 python experiments/relevance_check.py    # M5 Top-K scoring check on tuning seeds 0-4 (~30 s)
 python experiments/dpp_check.py          # M6 greedy quality, speed, theta sweep on tuning seeds 0-4 (~3 min)
 python experiments/select_theta.py       # M7 D-29 theta selection + pipeline rehearsal, tuning seeds (~7 min, 5 processes)
+python experiments/main_experiment.py --dry-run --out <dir>  # M8 rehearsal: tuning seeds, tiny scale (~2 s)
+python experiments/main_experiment.py    # M8 confirmatory run, EVALUATION seeds (~14 min, 5 processes)
 ```
 `sim_check.py` refuses evaluation seeds (≥ 100). Output goes to
 `results/m3_sim_check/<run_id>/` (`config.json`, `summary.json`,
@@ -596,6 +605,78 @@ are not hypothesis tests.*
 - `trajectories.png`: one example user per scenario and `κ`. True `z_t` for the top
   categories of `z_A` and `z_B` against the rolling 20-interaction observed frequency.
 
+### Milestone 8 — confirmatory run on evaluation seeds (2026-11-02) [MEASURED]
+Run: `results/m8_main/20261102-112410/`. Seeds 100–119, `U = 100` per cell, every step, `θ = 0.5`,
+`α = 0.05`, git HEAD `f0fc858`, `adaptdiv/` unchanged from HEAD. 812 s with 5 processes. 29,440
+records, no NaN, no missing cell. This was the first and only run on these seeds.
+
+**Holm family (8 tests).** `1.91e-06` is the smallest p a two-sided Wilcoxon can give with 20 seeds.
+
+| Test | Mean difference | 95% CI | Holm p | Verdict |
+|---|---|---|---|---|
+| H1a lag, cumulative − EWMA | +67.3 steps | [67.0, 67.6] | 1.5e-05 | Supported, beyond SESOI |
+| H1b post-shift TV, cumulative − EWMA | +0.248 | [0.247, 0.249] | 1.5e-05 | Supported, beyond SESOI |
+| H2 stable TV, EWMA − cumulative | +0.045 | [0.045, 0.046] | 1.5e-05 | Supported, beyond SESOI |
+| H3 noisy false switches, EWMA − cumulative | +0.057 | [0.055, 0.058] | 1.5e-05 | Supported, no SESOI |
+| H4a post-shift NDCG, Adaptive − Static Top-K | +0.101 (+131% relative) | [122%, 140%] | 1.5e-05 | Supported, beyond SESOI |
+| H5a coverage, Adaptive DPP − Adaptive Top-K | +0.089 | [0.086, 0.092] | 1.5e-05 | Supported, no SESOI |
+| H5b relative NDCG cost, focused − spread | +0.0038 | [0.0012, 0.0064] | 0.024 | Supported, no SESOI; very small |
+| H6b interaction on post-shift NDCG | −0.0106 | [−0.0111, −0.0100] | 1.5e-05 | Significant: substitution |
+
+**Separate checks.** H4b: the stable relative NDCG difference has CI [−1.9%, −1.6%], inside ±3%, so
+it meets the equivalence rule, although Adaptive Top-K is measurably lower. H6a: Adaptive DPP is
+not dominated; no compared method beats it on both axes.
+
+**Pooled means.**
+
+| Method | Post-shift NDCG | Post-shift EU | Post-shift coverage | Overall NDCG | Overall coverage | Overall seen share |
+|---|---|---|---|---|---|---|
+| Popularity | 0.1026 | 0.1281 | 0.745 | 0.1029 | 0.745 | 0.490 |
+| Static Top-K | 0.0787 | 0.1027 | 0.358 | 0.1774 | 0.328 | 0.805 |
+| Adaptive Top-K | 0.1794 | 0.2129 | 0.341 | 0.2086 | 0.299 | 0.756 |
+| Static DPP | 0.0861 | 0.1175 | 0.463 | 0.1762 | 0.421 | 0.787 |
+| Adaptive DPP | 0.1762 | 0.2064 | 0.444 | 0.2049 | 0.388 | 0.744 |
+| Oracle Top-K (diagnostic) | 0.2348 | 0.2736 | 0.294 | 0.2281 | 0.287 | 0.720 |
+| Oracle DPP (diagnostic) | 0.2304 | 0.2648 | 0.376 | 0.2241 | 0.366 | 0.710 |
+
+Seed-to-seed standard deviation of post-shift NDCG for Adaptive DPP: 0.012.
+
+**What the numbers mean.**
+- Adaptation gives the large gain. The DPP's change is small and has opposite signs: +0.0074
+  post-shift NDCG with the static profile, −0.0032 with the adaptive profile. That gap is H6b's
+  substitution result.
+- Adaptive DPP against Adaptive Top-K: NDCG cost 1.8% and coverage +0.089 (0.299 → 0.388). Overall
+  EU loss is 3.04%, just above the 3% limit that `θ` met on tuning seeds (2.8%). The tuning rule is
+  not re-applied here; this is reported as the out-of-sample value. The static profile's loss is 1.05%.
+- H5b holds in direction but is not a strong interaction: cost 1.93% focused, 1.55% spread; 14 of
+  20 seeds positive.
+- Estimation matters more than selection here: Oracle Top-K exceeds Adaptive Top-K by 0.055
+  post-shift NDCG, about 17 times the DPP's cost of 0.0032.
+- H2 and H3 are the predicted costs of adaptation and both appeared. In the noisy scenario EWMA's
+  false-switch rate is 0.074 against 0.017.
+
+**Ablations (descriptive, outside Holm; variant − proposed, drift pooled, post-shift).**
+
+| Variant | NDCG Top-K | NDCG DPP | Coverage Top-K | Coverage DPP |
+|---|---|---|---|---|
+| Uniform-start EWMA (`α = 0.07`) | +0.0114 [0.0111, 0.0118] | +0.0113 [0.0110, 0.0117] | −0.022 | −0.030 |
+| Window(40) | −0.0179 [−0.0184, −0.0175] | −0.0154 [−0.0159, −0.0149] | −0.005 | −0.011 |
+
+**A result against the proposed configuration.** The uniform-start ablation beats the proposed
+estimator on post-shift NDCG by about 6%, while losing coverage. Overall the NDCG gap is only
++0.0009. This ablation changes two things at once (`α` 0.07 vs 0.05, and the start), so it cannot
+say which one matters; `α` is the likely reason, but that is untested. `α = 0.05` was chosen for
+tracking error on tuning seeds (D-27), not for relevance. It stays fixed: the evaluation seeds
+have now been seen, so any new `α` would need fresh seeds and would be labelled exploratory.
+
+**Checks on this run** (scratchpad script, not in the repo).
+- Seed 100 rerun alone in one process: all 1,472 values identical to the pooled run.
+- H5b and H6b recomputed from `records.csv` with scipy directly: same means and p-values.
+- Oracle Top-K has the highest EU among Top-K methods in all 10 cells.
+- **Lag censoring:** the cumulative mean never crosses within the horizon for 64% of abrupt and
+  gradual cases and 29% of recurrent ones. EWMA is never censored. Censored lags are recorded at
+  the horizon, so H1a's 67 steps understates the true gap.
+
 ## 15. Problems encountered and resolutions
 - **2026-10-26 (M0):** The working tree was found with every tracked file deleted
   (uncommitted deletions) and the git-ignored data, processed, and checkpoint folders
@@ -652,6 +733,16 @@ are not hypothesis tests.*
 *No implemented approach has failed yet.* Design-stage alternatives that were
 rejected on evidence are recorded in §15 (M2: top-2 swap shift; no-repeat
 sampling).
+
+**2026-11-02 (M8), negative results on evaluation seeds** (details in §14):
+- Diversification did not improve relevance for the adaptive profile: Adaptive DPP has lower
+  post-shift NDCG than Adaptive Top-K (0.1762 vs 0.1794). The interaction is substitution, not
+  complementarity.
+- The proposed configuration is not the best adaptive setting tested for post-shift NDCG: the
+  uniform-start ablation (`α = 0.07`) is about 6% higher.
+- Adaptive DPP's EU loss was 3.04%, slightly above the 3% limit met on tuning seeds.
+- Adaptation has real costs: worse stable tracking (H2), more false switches (H3), and about 1.8%
+  lower NDCG with stable interests (H4b, inside the ±3% margin).
 
 ## 17. Assumptions, limitations, threats to validity, reproducibility
 Risks identified in Milestone 0 (mitigation in brackets):
@@ -736,6 +827,9 @@ Added in Milestone 3:
 As of 2026-11-01 (after M7): **the scale part of D-18 (proposal written, needed for M8)**;
 D-07 (deadline, since M0). D-19's
 calibration baseline is blocked until Steck (2018) is available.
+
+As of 2026-11-02 (after M8): D-18 is approved. Open: D-07 (deadline); D-19 is still blocked; the
+scope of M9 (which sensitivity analyses, and on which seeds, because the evaluation seeds are spent).
 
 ## 19. Chronological milestone history
 
@@ -902,6 +996,14 @@ calibration baseline is blocked until Steck (2018) is available.
 - **Status:** awaiting review. Milestone 8 needs the D-18 scale decision. Recommended: commit the
   freeze before any evaluation run, so git records that the plan came first.
 
+### Milestone 8 — Main experiments and ablations (2026-11-02)
+- Added `experiments/main_experiment.py`. It refuses a full run if `adaptdiv/` differs from HEAD,
+  and a rehearsal needs its own output folder. No `adaptdiv/` file or test changed; 159 tests pass.
+- Rehearsed on tuning seeds, then ran evaluation seeds 100–119 once (§14).
+- The script itself was uncommitted when it ran; `environment.json` records its SHA-256.
+- Calibration not run (D-19 blocked).
+- **Status:** awaiting review. Results not committed.
+
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
 ### Hypotheses (M1, 2026-10-26) — APPROVED 2026-10-26 (D-20); canonical copy in `hypothesis.md`
@@ -930,6 +1032,13 @@ trade-off parameter; the calibration re-ranker (if D-19 is approved) vs Adaptive
 | RQ1 | H1, H2, H3, H4 | M4 estimator study; M8 main runs | — (not run) |
 | RQ2 | H5 | M6 small examples; M8 main runs | — (not run) |
 | RQ3 | H4, H6 | M8 2×2 factorial runs | — (not run) |
+
+Update 2026-11-02 (M8, this simulation only; full conclusions wait for M10):
+| RQ | Measured finding |
+|---|---|
+| RQ1 | EWMA adapts much faster and gains large post-shift relevance; it pays in stable tracking and false switches (H1–H4 supported) |
+| RQ2 | DPP adds coverage at about 1.8% NDCG cost; the focused/spread difference is very small (H5 supported) |
+| RQ3 | Substitution: the DPP helps a static profile slightly and costs an adaptive one slightly. Adaptive DPP is not dominated (H6) |
 
 ---
 
@@ -1082,3 +1191,15 @@ trade-off parameter; the calibration re-ranker (if D-19 is approved) vs Adaptive
   comparisons much less noisy.
 - **Why tune `α` on a pooled mix of scenarios?** Choosing `α` per scenario would use
   the scenario label, which a real system wouldn't know. That is indirect leakage.
+
+### Milestone 8
+- **Does this prove the method is better?** No. It is one synthetic setup. Adaptive DPP offers a
+  different trade-off from Adaptive Top-K: more coverage for slightly lower relevance.
+- **Why is every p-value 1.91e-06?** All 20 seeds had the same sign, which is the smallest p a
+  two-sided Wilcoxon can give with 20 pairs. So the p-value says nothing about size; use the CI.
+- **What does substitution mean here?** The DPP's spread hedges against a stale static profile, so it
+  helps there. An adaptive profile is already current, so the same spread only costs relevance.
+- **Why not switch to `α = 0.07` after seeing the ablation?** That would tune on evaluation seeds. The
+  ablation also changes the start as well as `α`, so it can't identify the cause.
+- **H4b passed, so is adaptation free on stable interests?** No. It is about 1.8% lower, with a CI that
+  excludes zero. "Equivalent" only means inside the ±3% margin we set in advance.

@@ -68,6 +68,22 @@ before or after seeing evaluation results.
 | H1, H2, H3 | M4 estimator study (tuning seeds); M8 confirmatory run (evaluation seeds) | — not run |
 | H4, H5, H6 | M8 2×2 factorial runs | — not run |
 
+Update 2026-11-02: both rows were run once on evaluation seeds, `results/m8_main/20261102-112410/`.
+
+## Results (2026-11-02, Milestone 8; this simulation only)
+Reported under the frozen rules, unchanged. Numbers and CIs: `IMPLEMENTATION_LOG.md` §14.
+| ID | Outcome |
+|---|---|
+| H1a, H1b | Supported, beyond SESOI |
+| H2 | Supported, beyond SESOI (a predicted cost of adaptation) |
+| H3 | Supported (a predicted cost of adaptation) |
+| H4a | Supported, beyond SESOI |
+| H4b | Equivalent under the ±3% rule; the difference is about −1.8% and excludes zero |
+| H5a | Supported |
+| H5b | Supported in the predicted direction; very small (1.93% vs 1.55%; Holm p = 0.024) |
+| H6a | Not dominated |
+| H6b | Significant, direction: substitution |
+
 ## Amendments
 - **2026-11-01 (before any evaluation-seed run; made before the freeze):** following D-27,
   "EWMA" in H1–H3 and "adaptive profile" mean **bias-corrected EWMA**
