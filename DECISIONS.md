@@ -107,9 +107,9 @@ matplotlib 3.11.1. **pytest is not installed.**
 PyTorch or neural networks.
 
 ### D-07 — Deadline and compute budget
-**Status:** PENDING. **Needs input from the student:** the submission deadline and the
-viva date. The experiment scale (D-17) and whether Milestone 9 happens depend on
-these. Machine: 20 logical CPUs, 15.7 GB RAM, no GPU.
+**Status:** APPROVED. the submission deadline : 2026-11-15 and the
+viva date is after submission deadline.
+Machine: 20 logical CPUs, 15.7 GB RAM, no GPU.
 
 ---
 
