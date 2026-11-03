@@ -345,7 +345,7 @@ This will be benchmarked before asking to run the main experiments.
 ## Group C — Raised in Milestone 1 (literature review)
 
 ### D-19 — Add a calibration re-ranker (Steck 2018) as a baseline?
-**Status:** APPROVED 2026-10-26 (option (b): adaptive calibration re-ranker as a secondary comparison; Steck 2018 must be read in full before implementing)
+**Status:** APPROVED 2026-10-26 (option (b): adaptive calibration re-ranker as a secondary comparison; Steck 2018 must be read in full before implementing). Implementation proposal APPROVED 2026-11-03; done (λ = 0.8, results in IMPLEMENTATION_LOG §14)
 
 **Why it came up.** Steck (2018, literature B7) re-ranks a list so that its category
 distribution matches the user's interest distribution. Lin et al. (2024, B8) already
@@ -361,6 +361,40 @@ the DPP needed?"
 
 **Recommendation: (b)**, run as a secondary comparison (not part of the 2×2). MMR stays
 optional.
+
+Update 2026-11-03 (M10): still blocked. The author will supply the Steck (2018) PDF. Building it
+then needs its exact form decided, code, tests and an exploratory run on seeds 200–219. Until
+then, the reference document lists it as pending.
+
+**M10 proposal for D-19 (2026-11-03), APPROVED 2026-11-03 by the author.** Steck (2018) is now read in full
+(literature matrix, B7). Proposed method, "calibrated re-ranker", for each profile `ẑ_t` (static
+and adaptive):
+
+`R_t = argmax_{|R| = K} (1−λ) Σ_{i∈R} log s_i − λ KL(ẑ_t ‖ q̃_R)`, with
+`q_R(g) = |{i ∈ R : c_i = g}| / K` and `q̃_R = (1−a) q_R + a ẑ_t`, `a = 0.01`; built greedily, one
+item at a time, as in the paper. `s_i` is the same score as the other methods. `λ = 0` is Top-K.
+
+| Choice | Proposal | Alternative | Why |
+|---|---|---|---|
+| Target `p` | The method's own profile `ẑ_t` (static or adaptive) | Fixed history mix | It is "the same estimator fed to a different selector". The paper's Eq. 2 allows recency weights, so an EWMA target is the paper's own option |
+| Score term | `log s_i` (a monotone transform, which the paper allows) | Raw `s_i`, as in the paper's experiments | `s_i` is a tiny probability, so a linear sum would make `λ`'s scale arbitrary. This is the same reason D-14 used the log form for the DPP |
+| List weights | None (each slot counts `1/K`) | Rank weights | The paper's experiments use none; DPP lists are also scored as sets |
+| Diversity prior `β` | 0 | `β > 0` with a uniform `p_0` | Keeps calibration distinct from diversity, as the paper's experiments do. `β > 0` would blur the comparison with the DPP |
+| Choosing `λ` | D-29's rule: the most calibrating `λ` with EU@10 loss ≤ 3% against same-profile Top-K for both profiles, on **tuning seeds 0–4**. Grid {0.5, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995}; the full curve is reported | Match the DPP's EU loss per profile | The same budget rule as the DPP, chosen before any exploratory run. A first estimate puts the KL term (about 1.5 nats for a focused user given a single-category list) far below the score sum, so `λ` near 1 is expected, as in the paper (0.99) |
+| New metric | Miscalibration `KL(z_{t+1} ‖ q̃_R)` against the **true** interest, for every method, as a descriptive metric | Against `ẑ_t` only | It measures what calibration is meant to achieve. Against `ẑ_t` it would be partly true by construction for the calibrated method |
+| Evaluation | Exploratory run on seeds 200–219: Static/Adaptive × Top-K / DPP (`θ = 0.5`) / calibrated. Paired CIs, no Holm, no change to frozen verdicts | Evaluation seeds 100–119 | They are spent (D-31) |
+
+**Question it answers.** At a matched relevance budget, does the DPP add anything beyond matching
+category proportions to `ẑ_t` (coverage, NDCG, miscalibration)? Does calibration also show the
+substitution pattern with adaptation (the same interaction as H6b)?
+
+**Work and cost (estimates, to be measured).** New `adaptdiv/calibration.py` (greedy, vectorised
+over a user's steps), one optional field on `Method`, the miscalibration metric, and tests:
+`λ = 0` gives Top-K; greedy matches brute force on tiny instances; KL values computed by hand;
+and the frozen M8 records do not change. λ selection on tuning seeds: about 5–10 minutes. The
+exploratory run: about 10 minutes. Plus a figure and documentation.
+
+**Recommendation:** approve as written.
 
 ### D-20 — Hypotheses H1–H6
 **Status:** APPROVED 2026-10-26. Recorded in `hypothesis.md` (frozen before any evaluation-seed run). Full text is also in `IMPLEMENTATION_LOG.md` §20.
@@ -589,6 +623,13 @@ Seeds 200–219 serve follow-up studies, every one labelled exploratory: the `α
 frozen M8 configuration and its verdicts do not change. Real-data validation is left out unless the
 deadline allows it (D-07).
 
+### D-32 — Milestone 10 deliverable
+**Status:** DECIDED 2026-11-03 by the author.
+The author writes the final report personally. Milestone 10 produces a LaTeX **reference
+document** (`report/reference.tex`, `report/references.bib`, `report/figures/`) with the facts,
+equations, numbers, figures, citations and viva notes the report needs. The target report length
+is about 8–10 pages, with no course limit.
+
 Update 2026-11-02: the author approved the sweep at the stated cost of about 35 minutes. Routine design
 defaults, recorded here: `θ` in {0.9, 0.7, 0.5, 0.3} at η = 0.05; η in {0, 0.15, 0.3} at `θ = 0.5`; η
 also applies to the training population; the noisy scenario runs only at the default η.
@@ -622,3 +663,6 @@ also applies to the training population; the noisy scenario runs only at the def
 - 2026-11-02 — D-18 M8 scale approved by the author.
 - 2026-11-02 — D-31 added and approved (M9 scope).
 - 2026-11-02 — D-31: sweep cost approved; design defaults recorded.
+- 2026-11-03 — D-32 added (M10 deliverable, decided by the author). D-19: the author will supply the PDF.
+- 2026-11-03 — Steck (2018) read in full. D-19 implementation proposal added (pending).
+- 2026-11-03 — D-19 proposal approved by the author; λ = 0.8 selected on tuning seeds.

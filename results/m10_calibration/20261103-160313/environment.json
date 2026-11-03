@@ -1,0 +1,43 @@
+{
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "numpy": "2.5.2",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "git_head": "d1822a3f23bb82e79dba06eed49b5fe65b1170a1",
+  "git_status": "M DECISIONS.md\n M IMPLEMENTATION_LOG.md\n M README.md\n M adaptdiv/evaluation.py\n M adaptdiv/recommenders.py\n M literature/literature_matrix.md\n M tests/test_metrics_evaluation.py\n?? \"Milestone 8.zip\"\n?? adaptdiv/calibration.py\n?? experiments/calibration_figures.py\n?? experiments/calibration_study.py\n?? experiments/select_calibration.py\n?? \"literature/Harald Steck -  2018 - Calibrated Recommendations.pdf\"\n?? report/\n?? results/m10_calibration/\n?? results/m10_calibration_lambda/\n?? tests/test_calibration.py",
+  "script_sha256": "b11d75741031f42689ddddf69bfae18026308e648dc1cc456e8e2a45c9d4e8b8",
+  "seeds": [
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219
+  ],
+  "theta": 0.5,
+  "lambda": 0.8,
+  "processes": 5,
+  "eval_config": {
+    "k": 10,
+    "h": 5,
+    "burn_in": 20,
+    "post_window": 50,
+    "crossover_run": 5,
+    "stride": 1
+  },
+  "exploratory": true,
+  "runtime_seconds": 324.05961739993654
+}

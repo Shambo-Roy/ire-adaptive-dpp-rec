@@ -3,7 +3,7 @@
 A method combines a profile source with a selector:
 
     profile:  none (popularity) | static | adaptive | oracle
-    selector: Top-K, or greedy DPP with trade-off theta
+    selector: Top-K, greedy DPP with trade-off theta, or a calibrated re-ranker (D-19)
 
 Scores are s_i = r_i * (zhat_{c_i} + eps); Top-K is the theta = 1 case of the same objective.
 The list for step t + 1 uses the profile row for time t only. Profiles are computed
@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .calibration import calibrated_lists
 from .dpp import greedy_map
 from .relevance import top_k
 
@@ -28,6 +29,7 @@ class Method:
     name: str
     profile: str          # "none" | "static" | "adaptive" | "oracle"
     theta: float = 1.0    # 1.0 = Top-K
+    calib_lambda: float | None = None  # set: calibrated re-ranker with this lambda (theta unused)
 
 
 def standard_methods(theta: float) -> tuple[Method, ...]:
@@ -61,10 +63,13 @@ def recommendation_lists(
     theta: float,
     k: int,
     steps: np.ndarray | None = None,
+    calib_lambda: float | None = None,
 ) -> np.ndarray:
     """Lists for one user: row n holds the list built from ``profiles[steps[n]]``, shape (len(steps), k)."""
     steps = np.arange(profiles.shape[0]) if steps is None else steps
     log_s = log_scores(profiles[steps], r, categories)
+    if calib_lambda is not None:
+        return calibrated_lists(log_s, profiles[steps], categories, calib_lambda, k)
     if theta >= 1.0:
         return top_k(log_s, k)
     return np.stack([greedy_map(row, S, theta, k) for row in log_s])

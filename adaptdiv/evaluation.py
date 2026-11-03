@@ -16,6 +16,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from . import metrics as M
+from .calibration import miscalibration
 from .config import SimulationConfig
 from .estimation_metrics import crossover_lag, false_switch_rate, tracking_error
 from .estimators import PROPOSED_ESTIMATOR, STATIC_ESTIMATOR, UNIFORM_START_ABLATION, EstimatorSpec, categories_of
@@ -26,7 +27,7 @@ from .simulator import SimulatedData, SimulatedUser, generate
 
 Records = dict[tuple[float, str, str, str, str], float]
 
-RELEVANCE_METRICS = ("ndcg", "recall", "eu", "ndcg_new", "eu_new", "coverage", "ild", "seen")
+RELEVANCE_METRICS = ("ndcg", "recall", "eu", "ndcg_new", "eu_new", "coverage", "ild", "seen", "miscal")
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,7 @@ def list_metrics(lists: np.ndarray, steps: np.ndarray, user: SimulatedUser, publ
         "coverage": M.category_coverage(public.categories[lists], C),
         "ild": M.intra_list_diversity(public.embeddings[lists]),
         "seen": list_seen.mean(axis=1),
+        "miscal": miscalibration(public.categories[lists], truth.z[steps], C),   # D-19: KL(z_{t+1} || q~)
     }
 
 
@@ -121,7 +123,8 @@ def method_lists(method: Method, profile_row_user, r_within, pop_list, public, S
     """Lists for one user, sorted by score (a DPP selects a set; D-17)."""
     if method.profile == "none":
         return np.tile(pop_list, (steps.shape[0], 1))
-    lists = recommendation_lists(profile_row_user, r_within, public.categories, S, method.theta, k, steps=steps)
+    lists = recommendation_lists(profile_row_user, r_within, public.categories, S, method.theta, k, steps=steps,
+                                 calib_lambda=method.calib_lambda)
     log_s = log_scores(profile_row_user[steps], r_within, public.categories)
     order = np.argsort(-np.take_along_axis(log_s, lists, axis=1), axis=1, kind="stable")
     return np.take_along_axis(lists, order, axis=1)

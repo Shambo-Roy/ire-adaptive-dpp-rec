@@ -145,6 +145,10 @@ def test_list_metrics_match_independent_slow_computation(tiny):
         assert np.isclose(got["eu_new"][n], sum(P[i] for i in lst if i not in seen))
         assert np.isclose(got["seen"][n], np.mean([i in seen for i in lst]))
         assert np.isclose(got["coverage"][n], len({pub.categories[i] for i in lst}) / 10)
+        z = user.truth.z[t]                                        # z_{t+1}, the interest the list serves
+        q = [sum(pub.categories[i] == g for i in lst) / 10 for g in range(10)]
+        kl = sum(z[g] * np.log(z[g] / (0.99 * q[g] + 0.01 * z[g])) for g in range(10) if z[g] > 0)
+        assert np.isclose(got["miscal"][n], kl)
         if new:
             dcg_new = sum(disc[p] for p, i in enumerate(lst) if i in new)
             assert np.isclose(got["ndcg_new"][n], dcg_new / disc[:len(new)].sum())
@@ -195,11 +199,24 @@ def test_extra_profile_matches_the_same_built_in_estimator(tiny):
             assert rec[(key[0], key[1], "copy", key[3], key[4])] == value
 
 
+
+def test_calibrated_method_adds_records_and_changes_nothing_else(tiny):
+    """D-19: adding a calibrated method leaves every other record identical; lambda = 0 equals Top-K."""
+    base = Method("adaptive_topk", "adaptive")
+    plain = evaluate(tiny, (base,), EV)
+    rec = evaluate(tiny, (base, Method("cal0", "adaptive", calib_lambda=0.0), Method("cal", "adaptive", calib_lambda=0.99)), EV)
+    for key, value in plain.items():
+        assert rec[key] == value
+        if key[2] == "adaptive_topk":
+            assert rec[(key[0], key[1], "cal0", key[3], key[4])] == value
+    assert rec[(0.1, "stable", "cal", "overall", "miscal")] < rec[(0.1, "stable", "adaptive_topk", "overall", "miscal")]
+
+
 # ------------------------------------------------------------------ leakage
 def test_recommendation_code_cannot_import_ground_truth():
     """Estimators, relevance, similarity, DPP and recommenders must not import the simulator."""
     root = Path(adaptdiv.__file__).parent
-    for name in ("estimators", "relevance", "similarity", "dpp", "recommenders"):
+    for name in ("estimators", "relevance", "similarity", "dpp", "recommenders", "calibration"):
         tree = ast.parse((root / f"{name}.py").read_text(encoding="utf-8"))
         imported = set()
         for node in ast.walk(tree):

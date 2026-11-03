@@ -90,6 +90,10 @@ Per-scenario note (M9, descriptive): H4b holds pooled, but spread users lose 3.7
 Sensitivity note (M9, exploratory, seeds 200–219): the H6b substitution direction held at every `θ`
 (0.3–0.9) and η (0–0.3) tested. This describes the simulator's behaviour and changes no verdict.
 
+Calibration note (M10, exploratory, D-19, seeds 200–219): a calibrated re-ranker at the same relevance
+budget matched the DPP on NDCG and exceeded it on coverage, and showed the same substitution. No verdict
+changes; the DPP is not shown to be needed beyond calibration in this simulator.
+
 ## Amendments
 - **2026-11-01 (before any evaluation-seed run; made before the freeze):** following D-27,
   "EWMA" in H1–H3 and "adaptive profile" mean **bias-corrected EWMA**

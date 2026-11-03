@@ -1,0 +1,270 @@
+% Bibliography for reference.tex. Every entry comes from literature/literature_matrix.md.
+% Verification level from that file is noted per entry:
+%   M = metadata checked; A = claims from the abstract; F = full text read (partial, see matrix);
+%   S = claims from secondary sources only.
+% Cite a paper only for what its level supports.
+
+% ---- A. Determinantal point processes ----
+
+@article{kulesza2012dpp,  % M, A, F (partial)
+  author  = {Kulesza, Alex and Taskar, Ben},
+  title   = {Determinantal Point Processes for Machine Learning},
+  journal = {Foundations and Trends in Machine Learning},
+  volume  = {5},
+  number  = {2--3},
+  pages   = {123--286},
+  year    = {2012},
+  doi     = {10.1561/2200000044}
+}
+
+@inproceedings{kulesza2011kdpp,  % M, A
+  author    = {Kulesza, Alex and Taskar, Ben},
+  title     = {k-{DPPs}: Fixed-Size Determinantal Point Processes},
+  booktitle = {Proceedings of the 28th International Conference on Machine Learning (ICML)},
+  pages     = {1193--1200},
+  year      = {2011}
+}
+
+@article{ko1995exact,  % M, A
+  author  = {Ko, Chun-Wa and Lee, Jon and Queyranne, Maurice},
+  title   = {An Exact Algorithm for Maximum Entropy Sampling},
+  journal = {Operations Research},
+  volume  = {43},
+  number  = {4},
+  pages   = {684--691},
+  year    = {1995},
+  doi     = {10.1287/opre.43.4.684}
+}
+
+@inproceedings{gillenwater2012map,  % M, A
+  author    = {Gillenwater, Jennifer and Kulesza, Alex and Taskar, Ben},
+  title     = {Near-Optimal {MAP} Inference for Determinantal Point Processes},
+  booktitle = {Advances in Neural Information Processing Systems 25},
+  pages     = {2735--2743},
+  year      = {2012}
+}
+
+@inproceedings{chen2018fast,  % M, A, F (partial)
+  author    = {Chen, Laming and Zhang, Guoxin and Zhou, Eric},
+  title     = {Fast Greedy {MAP} Inference for Determinantal Point Process to Improve Recommendation Diversity},
+  booktitle = {Advances in Neural Information Processing Systems 31},
+  pages     = {5622--5633},
+  year      = {2018},
+  note      = {arXiv:1709.05135 (third author listed as Hanning Zhou on arXiv)}
+}
+
+@inproceedings{wilhelm2018youtube,  % M, F (partial, sections 4.2--4.5)
+  author    = {Wilhelm, Mark and Ramanathan, Ajith and Bonomo, Alexander and Jain, Sagar and Chi, Ed H. and Gillenwater, Jennifer},
+  title     = {Practical Diversified Recommendations on {YouTube} with Determinantal Point Processes},
+  booktitle = {Proceedings of the 27th ACM International Conference on Information and Knowledge Management (CIKM)},
+  pages     = {2165--2173},
+  year      = {2018},
+  doi       = {10.1145/3269206.3272018}
+}
+
+@inproceedings{liu2022dppseq,  % M, A
+  author    = {Liu, Yuli and Walder, Christian and Xie, Lexing},
+  title     = {Determinantal Point Process Likelihoods for Sequential Recommendation},
+  booktitle = {Proceedings of the 45th International ACM SIGIR Conference},
+  year      = {2022},
+  note      = {arXiv:2204.11562}
+}
+
+@misc{liu2019d2rl,  % M (arXiv only), A; venue not verified
+  author = {Liu, Yong and Zhang, Yinan and Wu, Qiong and Miao, Chunyan and Cui, Lizhen and Zhao, Binqiang and Zhao, Yin and Guan, Lu},
+  title  = {Diversity-Promoting Deep Reinforcement Learning for Interactive Recommendation},
+  year   = {2019},
+  note   = {arXiv:1903.07826}
+}
+
+@misc{ibrahim2025personalized,  % M, A, F (arXiv v1)
+  author = {Ibrahim, Carole and Bederina, Hiba and Cuesta, Daniel and Montier, Laurent and Delabre, Cyrille and Vie, Jill-J{\^e}nn},
+  title  = {Diversified Recommendations of Cultural Activities with Personalized Determinantal Point Processes},
+  year   = {2025},
+  note   = {arXiv:2509.10392. RecSoGood workshop at RecSys 2025}
+}
+
+% ---- B. Diversity, calibration and intent-aware ranking ----
+
+@inproceedings{carbonell1998mmr,  % M, A
+  author    = {Carbonell, Jaime and Goldstein, Jade},
+  title     = {The Use of {MMR}, Diversity-Based Reranking for Reordering Documents and Producing Summaries},
+  booktitle = {Proceedings of the 21st Annual International ACM SIGIR Conference},
+  pages     = {335--336},
+  year      = {1998},
+  doi       = {10.1145/290941.291025}
+}
+
+@inproceedings{ziegler2005topic,  % M, A
+  author    = {Ziegler, Cai-Nicolas and McNee, Sean M. and Konstan, Joseph A. and Lausen, Georg},
+  title     = {Improving Recommendation Lists Through Topic Diversification},
+  booktitle = {Proceedings of the 14th International Conference on World Wide Web (WWW)},
+  pages     = {22--32},
+  year      = {2005},
+  doi       = {10.1145/1060745.1060754}
+}
+
+@inproceedings{agrawal2009diversifying,  % M, A
+  author    = {Agrawal, Rakesh and Gollapudi, Sreenivas and Halverson, Alan and Ieong, Samuel},
+  title     = {Diversifying Search Results},
+  booktitle = {Proceedings of the Second ACM International Conference on Web Search and Data Mining (WSDM)},
+  pages     = {5--14},
+  year      = {2009},
+  doi       = {10.1145/1498759.1498766}
+}
+
+@inproceedings{clarke2008novelty,  % M, A/S (alpha-nDCG attribution from secondary sources)
+  author    = {Clarke, Charles L. A. and Kolla, Maheedhar and Cormack, Gordon V. and Vechtomova, Olga and Ashkan, Azin and B{\"u}ttcher, Stefan and MacKinnon, Ian},
+  title     = {Novelty and Diversity in Information Retrieval Evaluation},
+  booktitle = {Proceedings of the 31st Annual International ACM SIGIR Conference},
+  pages     = {659--666},
+  year      = {2008},
+  doi       = {10.1145/1390334.1390446}
+}
+
+@inproceedings{vargas2011intent,  % M, A
+  author    = {Vargas, Sa{\'u}l and Castells, Pablo and Vallet, David},
+  title     = {Intent-Oriented Diversity in Recommender Systems},
+  booktitle = {Proceedings of the 34th International ACM SIGIR Conference (poster)},
+  pages     = {1211--1212},
+  year      = {2011},
+  doi       = {10.1145/2009916.2010124}
+}
+
+@inproceedings{teo2016adaptive,  % M, A
+  author    = {Teo, Choon Hui and Nassif, Houssam and Hill, Daniel and Srinivasan, Sriram and Goodman, Mitchell and Mohan, Vijai and Vishwanathan, S. V. N.},
+  title     = {Adaptive, Personalized Diversity for Visual Discovery},
+  booktitle = {Proceedings of the 10th ACM Conference on Recommender Systems (RecSys)},
+  year      = {2016},
+  doi       = {10.1145/2959100.2959171}
+}
+
+@inproceedings{steck2018calibrated,  % M, F (full text read 2026-11-03)
+  author    = {Steck, Harald},
+  title     = {Calibrated Recommendations},
+  booktitle = {Proceedings of the 12th ACM Conference on Recommender Systems (RecSys)},
+  pages     = {154--162},
+  year      = {2018},
+  doi       = {10.1145/3240323.3240372}
+}
+
+@inproceedings{lin2024beyond,  % M, A, F (arXiv v1)
+  author    = {Lin, Kun and Mansoury, Masoud and Eskandanian, Farzad and Sabouri, Milad and Mobasher, Bamshad},
+  title     = {Beyond Static Calibration: The Impact of User Preference Dynamics on Calibrated Recommendation},
+  booktitle = {Adjunct Proceedings of the 32nd ACM Conference on User Modeling, Adaptation and Personalization (UMAP Adjunct)},
+  pages     = {86--91},
+  year      = {2024},
+  doi       = {10.1145/3631700.3664869}
+}
+
+@article{kaminskas2016diversity,  % M, A; year differs between sources (2016/2017)
+  author  = {Kaminskas, Marius and Bridge, Derek},
+  title   = {Diversity, Serendipity, Novelty, and Coverage: A Survey and Empirical Analysis of Beyond-Accuracy Objectives in Recommender Systems},
+  journal = {ACM Transactions on Interactive Intelligent Systems},
+  volume  = {7},
+  number  = {1},
+  year    = {2016},
+  doi     = {10.1145/2926720}
+}
+
+@article{wu2024diversification,  % M, A
+  author  = {Wu, Haolun and Zhang, Yansen and Ma, Chen and Lyu, Fuyuan and He, Bowei and Mitra, Bhaskar and Liu, Xue},
+  title   = {Result Diversification in Search and Recommendation: A Survey},
+  journal = {IEEE Transactions on Knowledge and Data Engineering},
+  year    = {2024},
+  doi     = {10.1109/TKDE.2024.3382262}
+}
+
+% ---- C. Session-based and multi-interest recommendation ----
+
+@inproceedings{hidasi2016gru4rec,  % M, A
+  author    = {Hidasi, Bal{\'a}zs and Karatzoglou, Alexandros and Baltrunas, Linas and Tikk, Domonkos},
+  title     = {Session-based Recommendations with Recurrent Neural Networks},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2016},
+  note      = {arXiv:1511.06939}
+}
+
+@article{ludewig2018evaluation,  % M, A
+  author  = {Ludewig, Malte and Jannach, Dietmar},
+  title   = {Evaluation of Session-based Recommendation Algorithms},
+  journal = {User Modeling and User-Adapted Interaction},
+  volume  = {28},
+  number  = {4--5},
+  pages   = {331--390},
+  year    = {2018},
+  doi     = {10.1007/s11257-018-9209-6}
+}
+
+@article{wang2021survey,  % M, A
+  author  = {Wang, Shoujin and Cao, Longbing and Wang, Yan and Sheng, Quan Z. and Orgun, Mehmet A. and Lian, Defu},
+  title   = {A Survey on Session-based Recommender Systems},
+  journal = {ACM Computing Surveys},
+  volume  = {54},
+  number  = {7},
+  pages   = {154:1--154:38},
+  year    = {2021},
+  doi     = {10.1145/3465401}
+}
+
+@inproceedings{cen2020comirec,  % M, A
+  author    = {Cen, Yukuo and Zhang, Jianwei and Zou, Xu and Zhou, Chang and Yang, Hongxia and Tang, Jie},
+  title     = {Controllable Multi-Interest Framework for Recommendation},
+  booktitle = {Proceedings of the 26th ACM SIGKDD Conference on Knowledge Discovery and Data Mining},
+  year      = {2020},
+  note      = {arXiv:2005.09347}
+}
+
+% ---- D. Temporal dynamics and concept drift ----
+
+@inproceedings{ding2005time,  % M, A
+  author    = {Ding, Yi and Li, Xue},
+  title     = {Time Weight Collaborative Filtering},
+  booktitle = {Proceedings of the 14th ACM International Conference on Information and Knowledge Management (CIKM)},
+  pages     = {485--492},
+  year      = {2005},
+  doi       = {10.1145/1099554.1099689}
+}
+
+@inproceedings{koren2009temporal,  % M, A
+  author    = {Koren, Yehuda},
+  title     = {Collaborative Filtering with Temporal Dynamics},
+  booktitle = {Proceedings of the 15th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  year      = {2009}
+}
+
+@article{gama2014survey,  % M, A
+  author  = {Gama, Jo{\~a}o and {\v{Z}}liobait{\.e}, Indr{\.e} and Bifet, Albert and Pechenizkiy, Mykola and Bouchachia, Abdelhamid},
+  title   = {A Survey on Concept Drift Adaptation},
+  journal = {ACM Computing Surveys},
+  volume  = {46},
+  number  = {4},
+  pages   = {44:1--44:37},
+  year    = {2014},
+  doi     = {10.1145/2523813}
+}
+
+@inproceedings{bifet2007adwin,  % M, A
+  author    = {Bifet, Albert and Gavald{\`a}, Ricard},
+  title     = {Learning from Time-Changing Data with Adaptive Windowing},
+  booktitle = {Proceedings of the 2007 SIAM International Conference on Data Mining (SDM)},
+  pages     = {443--448},
+  year      = {2007},
+  doi       = {10.1137/1.9781611972771.42}
+}
+
+% ---- E. Simulation ----
+
+@misc{ie2019recsim,  % M, A
+  author = {Ie, Eugene and Hsu, Chih-wei and Mladenov, Martin and Jain, Vihan and Narvekar, Sanmit and Wang, Jing and Wu, Rui and Boutilier, Craig},
+  title  = {{RecSim}: A Configurable Simulation Platform for Recommender Systems},
+  year   = {2019},
+  note   = {arXiv:1909.04847}
+}
+
+@misc{stavinova2022synthetic,  % M (arXiv), A; venue not verified
+  author = {Stavinova, Elizaveta and Grigorievskiy, Alexander and Volodkevich, Anna and Chunaev, Petr and Bochenina, Klavdiya and Bugaychenko, Dmitry},
+  title  = {Synthetic Data-Based Simulators for Recommender Systems: A Survey},
+  year   = {2022},
+  note   = {arXiv:2206.11338}
+}

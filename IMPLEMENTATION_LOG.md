@@ -340,6 +340,9 @@ python experiments/m9_figures.py         # M9 figures and per-scenario table fro
 python experiments/alpha_start_study.py  # M9 exploratory alpha x start study, seeds 200-219 (~9 min, 5 processes)
 python experiments/sensitivity_study.py  # M9 exploratory theta and eta sweeps, seeds 200-219 (~27 min, 5 processes)
 python experiments/sensitivity_figures.py <run folder>  # M9 sweep figures from saved records (seconds)
+python experiments/select_calibration.py  # M10 D-19 lambda selection on tuning seeds (~2 min)
+python experiments/calibration_study.py --lam 0.8  # M10 D-19 calibrated vs DPP, seeds 200-219 (~5.5 min)
+python experiments/calibration_figures.py <run folder>  # M10 calibration figure (seconds)
 ```
 `sim_check.py` refuses evaluation seeds (≥ 100). Output goes to
 `results/m3_sim_check/<run_id>/` (`config.json`, `summary.json`,
@@ -358,6 +361,14 @@ Recorded 2026-10-26 (Milestone 0 inspection):
   `origin = https://github.com/Shambo-Roy/ire-adaptive-dpp-rec` (public).
 
 ## 13. Test cases and outcomes
+
+### Milestone 10 (2026-11-03): `python -m pytest -q` → **188 passed in 5.75 s**
+- `test_calibration.py` (27): hand-computed KL; zero KL for a calibrated list; λ = 0 equals Top-K;
+  the batched greedy matches a greedy that evaluates the paper's full objective directly (18 cases);
+  λ = 0.99 reproduces a 70:30 target as 7:3; distinct items; input validation.
+- `test_metrics_evaluation.py`: miscalibration recomputed independently against `z_{t+1}`; adding a
+  calibrated method leaves all other records identical, and λ = 0 gives Top-K records; `calibration.py`
+  added to the no-ground-truth import check.
 
 ### Milestone 9 (2026-11-02): `python -m pytest -q` → **160 passed in 5.46 s**
 - One new test: `test_extra_profile_matches_the_same_built_in_estimator`. An `extra_profiles` estimator
@@ -769,6 +780,56 @@ These results change no verdict and no frozen value. `θ = 0.7` looks attractive
 after the fact, and D-29 fixed the selection rule in advance: the smallest `θ` within the 3% EU limit on
 tuning seeds. Any change would need its own confirmation on fresh seeds.
 
+### Milestone 10 — calibrated re-ranker vs DPP (D-19, 2026-11-03) [MEASURED, EXPLORATORY]
+**λ selection (tuning seeds 0–4, `results/m10_calibration_lambda/20261103-160304/`, 120 s).** D-29 rule, pooled
+over all scenarios and both `κ`; EU loss against same-profile Top-K:
+
+| λ | 0.5 | **0.8** | 0.9 | 0.95 | 0.98 | 0.99 | 0.995 |
+|---|---|---|---|---|---|---|---|
+| Static EU loss | −0.5% | 0.6% | 2.6% | 5.0% | 7.3% | 8.3% | 8.9% |
+| Adaptive EU loss | 0.4% | **2.8%** | 5.6% | 8.3% | 10.5% | 11.4% | 12.0% |
+| Adaptive coverage (Top-K 0.321) | 0.387 | 0.484 | 0.551 | 0.598 | 0.633 | 0.647 | 0.654 |
+
+**Selected λ = 0.8**, close to the limit, as `θ` was (2.8% for both). My expectation of λ near 0.99 (D-19
+proposal) was wrong. The grid has no value between 0.8 and 0.9, so the selected λ may be slightly
+below the most calibrating acceptable value.
+
+**Comparison (seeds 200–219, `results/m10_calibration/20261103-160313/`, 324 s, figure
+`calibration_tradeoff.png`).** Both diversifiers were chosen by the same rule on tuning seeds, and their
+overall EU is almost identical (adaptive 0.2405 vs 0.2405), so this is a comparison at a matched
+relevance budget. Calibrated − DPP, pooled over `κ`, 95% CIs:
+
+| Profile | Post-shift NDCG | Post-shift coverage | Overall coverage | Overall miscalibration `KL(z‖q̃)` | Overall EU |
+|---|---|---|---|---|---|
+| Static | +0.0027 [0.0023, 0.0032] | +0.107 | +0.091 | −0.283 | +0.0007 |
+| Adaptive | −0.0000 [−0.0003, +0.0003] | +0.098 | +0.083 | −0.222 | −0.0000 [−0.0006, +0.0005] |
+
+Intra-list diversity (embedding-based, which the DPP optimises): calibrated 0.840 vs DPP 0.828 (adaptive),
+0.857 vs 0.845 (static); Top-K 0.753 / 0.776.
+
+| Interaction on post-shift NDCG | All | Focused | Spread |
+|---|---|---|---|
+| DPP | −0.0105 [−0.0111, −0.0100] | −0.0148 | −0.0062 |
+| Calibrated | −0.0133 [−0.0137, −0.0128] | −0.0169 | −0.0096 |
+
+**Findings.**
+- **At the same relevance budget, the DPP added nothing that calibration did not.** With the adaptive
+  profile, NDCG and EU are equal within ±0.0006, while calibration gives about +0.08 to +0.10 more category
+  coverage, lower miscalibration, and slightly higher ILD. With the static profile calibration is also
+  slightly more relevant after shifts. The same holds in both `κ` groups.
+- By H6a's rule (both CIs above zero), Adaptive Calibrated does not formally dominate Adaptive DPP, only
+  because their NDCG is tied. On every diversity measure it is ahead.
+- **Substitution is not specific to the DPP.** The calibrated re-ranker shows the same pattern, slightly
+  stronger. Any re-ranker that spreads the list away from the top categories hedges a stale profile and
+  costs a current one.
+- **Why the DPP does no better here (my reading, not tested):** item embeddings are clustered by category
+  (cross-category cosine about 0), so embedding diversity is mostly category diversity, which calibration
+  targets directly. Real catalogues with within-category variety, or categories that are not what users
+  choose by, could favour a DPP. This simulator cannot show that.
+- The DPP and Top-K values reproduce the sensitivity run on the same seeds exactly (10,240 of 10,240).
+- Exploratory: decided after the confirmatory run, so it changes no verdict. It weakens any claim that the
+  DPP specifically is needed.
+
 ## 15. Problems encountered and resolutions
 - **2026-10-26 (M0):** The working tree was found with every tracked file deleted
   (uncommitted deletions) and the git-ignored data, processed, and checkpoint folders
@@ -840,6 +901,11 @@ sampling).
 - No tested `θ` or η produced complementarity. The DPP never raised adaptive post-shift NDCG by a
   meaningful amount; its largest effect was +0.0001 for spread users at `θ = 0.9`.
 - `θ = 0.3` costs the adaptive profile about 6.6% of post-shift NDCG and 10.84% of post-shift EU.
+
+**2026-11-03 (M10, D-19), exploratory, seeds 200–219:**
+- At a matched relevance budget the DPP added nothing over a calibrated re-ranker: equal NDCG and EU for
+  the adaptive profile, with calibration ahead on coverage (+0.08), miscalibration and ILD.
+- Calibration shows the same substitution with adaptation, so it is not a DPP-specific effect.
 - Spread users' stable NDCG loss exceeds 3% at every η tested, even with no click noise.
 
 ## 17. Assumptions, limitations, threats to validity, reproducibility
@@ -934,6 +1000,9 @@ sees before they start; D-07; D-19.
 
 Update 2026-11-02: the author approved the sweep cost and it has run. Open: approval to start M10; D-07;
 D-19, which also affects the report's calibration section.
+
+Update 2026-11-03: M10 approved; D-32 decided by the author. Open: D-19 (waiting for the Steck PDF from
+the author); D-07.
 
 ## 19. Chronological milestone history
 
@@ -1120,6 +1189,33 @@ Update: the author committed and pushed M8 as `e7f7aad`.
 - Update 2026-11-02: M9 complete. Added `experiments/sensitivity_study.py` and
   `experiments/sensitivity_figures.py`; the sweep ran in 1,614 s against an estimate of about 35 minutes.
   Real-data validation was left out (D-31). Results in §14. Full suite **160 passed**. Not committed.
+- Update 2026-11-03: committed as `d1822a3` and pushed, both at the author's request.
+
+### Milestone 10 — Reference document and viva preparation (2026-11-03, in progress)
+- The author will write the final report personally (D-32). Added `report/reference.tex`,
+  `report/references.bib` and `report/figures/` (7 figures copied from the run folders named in each
+  caption). The document collects the research question, simulator, methods, protocol, tuning,
+  confirmatory and exploratory results, negative results, limitations, reproducibility, a
+  claim-to-evidence map and a viva appendix. Every bibliography entry comes from the literature
+  matrix, with its verification level noted.
+- New numbers computed for it from the saved M8 records (no new simulation): per-`κ` method means and
+  per-cell estimator values. Example: post-shift NDCG for focused users is 0.2321 (Adaptive Top-K)
+  against 0.0815 (Static Top-K); the interaction is −0.0145 for focused and −0.0066 for spread users.
+- **Not compiled.** No LaTeX distribution is installed here. A script checked brace and environment
+  balance, citation keys, labels, figure files and non-ASCII characters; all passed.
+- ~~Pending: D-19 calibration baseline, waiting for the Steck PDF.~~ Not committed.
+- Update 2026-11-03: the author added `literature/Harald Steck -  2018 - Calibrated Recommendations.pdf`
+  (untracked). It has not been read yet. The repository is public, so whether to commit a publisher PDF
+  is the author's call.
+- Update 2026-11-03: the paper was read in full (text extracted with PyMuPDF into the scratchpad;
+  literature matrix B7 now at level F). The secondary notes were accurate. The `(1−1/e)` guarantee is
+  for the paper's submodular surrogate, which picks the same item at each greedy step. A D-19
+  implementation proposal is in `DECISIONS.md`, pending approval. No code yet.
+- Update 2026-11-03: D-19 approved by the author and done. Added `adaptdiv/calibration.py`, an optional
+  `Method.calib_lambda`, the `miscal` metric (KL of the true `z_{t+1}` to the list's smoothed category mix),
+  `experiments/select_calibration.py`, `calibration_study.py`, `calibration_figures.py` and tests (188 pass).
+  λ = 0.8 chosen on tuning seeds; the comparison ran on seeds 200–219. Results in §14. Existing
+  records gain one metric key (`miscal`); all other values are unchanged (tested). Not committed.
 
 ## 20. Research questions ↔ hypotheses ↔ experiments ↔ conclusions
 
@@ -1344,3 +1440,20 @@ Update 2026-11-02 (M8, this simulation only; full conclusions wait for M10):
   Noise clicks are uniform across categories, so held-out clicks get harder to predict when the profile
   is right. A stale profile is wrong anyway, and noise pushes the target clicks towards a flatter mix
   that a stale list misses a little less. This explanation is my reading; the sweep did not test it.
+
+### Milestone 10
+The full viva notes for the report are in `report/reference.tex`, Appendix A. Additions here:
+- **Why is the static profile worse than Popularity after a shift?** It keeps recommending the
+  categories the user has left. Popularity at least spreads its list across categories.
+- **Why seed-level tests rather than user-level?** Users within a seed share a catalogue and a
+  training population, so they are not independent. The seed is the replicated unit.
+- **What would come next?** A calibration baseline (D-19), real logs with proxy drift labels, a
+  closed-loop simulator, adaptive-rate estimators such as ADWIN, and randomised shift times.
+- **Did you compare against a non-DPP diversifier?** Yes, a calibrated re-ranker after Steck (2018),
+  chosen by the same EU rule. At equal relevance it gave more coverage, lower miscalibration and
+  slightly higher ILD than the DPP. In this simulator the DPP is not needed for these goals.
+- **Then why is the DPP still in the project?** The study was designed and frozen around it, and the
+  result is reported as found. The DPP could matter where embeddings vary within categories, which
+  this simulator does not model.
+- **Why λ = 0.8 and not Steck's 0.99?** Our score term is a sum of log scores and our lists have 10
+  items over 10 categories, so the scales differ. λ was chosen by the same rule as `θ`, on tuning seeds.
